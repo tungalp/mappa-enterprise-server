@@ -1,0 +1,46 @@
+db:
+  url: "postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}"
+session:
+  secret: "${SESSION_SECRET}"
+  timeout: ${SESSION_TIMEOUT}
+oidc:
+  issuer: "${SCHEME}://${SSO_HOST}"
+  api_host: "${SCHEME}://${SSO_HOST}"
+  app_host: "${SCHEME}://${SSO_HOST}"
+  jwt_secret: "${JWT_SECRET}"
+  private_key_file: "./private.pem"
+  public_key_file: "./public.pem"
+  short_token_lifetime: ${SHORT_TOKEN_LIFETIME}
+  long_token_lifetime: ${LONG_TOKEN_LIFETIME}
+  id_token_lifetime: ${ID_TOKEN_LIFETIME}
+  refresh_token_lifetime: ${REFRESH_TOKEN_LIFETIME}
+mail:
+  smtp: "${MAIL_SMTP}"
+  user_name: "${MAIL_USER_NAME}"
+  password: "${MAIL_PASSWORD}"
+  method: "${MAIL_METHOD}"
+  port: ${MAIL_PORT}
+  subject: "${MAIL_SUBJECT}"
+  mail_header: "${MAIL_HEADER}"
+  mail_header_en: "${MAIL_HEADER_EN}"
+elk:
+  host: "logstash"
+  port: 5000
+apm:
+  service_name: "mapa-sso"
+  secret_token: ""
+  server_url: "http://apm-server:8200"
+  environment: "mapa-sso-service-environment"
+  body: "errors"
+  log_level: "info"
+  sanitize_field_names: "password,passwd,pwd,secret,*key,*token*,*session*,*credit*,*card*,*auth*,*principal*,set-cookie,tckno,tcno,vergi,tc,adres,iban,*logo*,*client_id*,*clientid*,*client-id*,*clientId*,*client_id*,*clientId*,*client-id*,*clientid*,*client_id*,*client_secret*,*client_secret*,*client-secret*,*clientSecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*secret_key*,*secret-key*,*secretKey*,*secretkey*,*secret_key*,*secretKey*,*secret-key*,*secretkey*"
+alembic:
+  migrations_path: "/workspace/apps/sso/migrations"
+  url: "postgresql://${MIG_USER}:${MIG_PASSWORD}@${DB_HOST}/${DB_NAME}"
+rabbitmq:
+  exchange_name: ${RABBIT_EXCHANGE_NAME}
+  host: ${RABBIT_HOST}
+  port: ${RABBIT_PORT}
+  username: ${RABBIT_USERNAME}
+  password: ${RABBIT_PASSWORD}
+  virtual_host: ${RABBIT_V_HOST}

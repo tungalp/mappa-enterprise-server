@@ -1,0 +1,7 @@
+db:
+  url: "postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}"
+oidc:
+  jwks_uri: "http://mapa-sso-api/api/sso/oidc/jwks"
+elk:
+  host: "host.docker.internal"
+  port: 5000

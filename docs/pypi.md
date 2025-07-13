@@ -1,0 +1,1 @@
+poetry config pypi-token.pypi <api-key>

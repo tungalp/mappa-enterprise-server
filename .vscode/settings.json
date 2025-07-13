@@ -1,0 +1,25 @@
+{
+    "python.analysis.extraPaths": [
+      "${workspaceFolder}/apps/sso",
+      "${workspaceFolder}/apps/manage",
+      "${workspaceFolder}/apps/service",
+      "${workspaceFolder}/apps/application",
+      "${workspaceFolder}/apps/gateway",
+      "${workspaceFolder}/apps/spatial",
+      "${workspaceFolder}/libs/core",
+      "${workspaceFolder}/libs/app",
+      "${workspaceFolder}/libs/manage",
+      "${workspaceFolder}/libs/test",
+      "${workspaceFolder}/libs/gateway",
+      "${workspaceFolder}/libs/service",
+    ],
+    "python.testing.pytestArgs": [],
+    "python.testing.pytestPath": "${workspaceFolder}/apps/spatial/.venv/bin/pytest",
+    "python.testing.cwd":        "${workspaceFolder}/apps/spatial/tests",
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.analysis.typeCheckingMode": "off",
+    "terminal.integrated.env.linux": {
+      "MAPA_ENV": "DEVELOPMENT"
+    }
+  }

@@ -1,0 +1,7 @@
+db:
+  url: "postgresql+asyncpg://postgres:postgres@localhost/mapa_test"
+oidc:
+  jwks_uri: "http://localhost:33100/api/sso/oidc/jwks"
+elk:
+  host: "host.docker.internal"
+  port: 5000

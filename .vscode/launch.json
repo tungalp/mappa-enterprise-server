@@ -1,0 +1,160 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "SSO",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "sso.main:app",
+                "--port",
+                "33100",
+                "--host",
+                "0.0.0.0",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/apps/sso",
+            "jinja": false,
+            "python": "${workspaceFolder}/apps/sso/.venv/bin/python3",
+            "justMyCode": false
+        },
+        {
+            "name": "Manage",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn", 
+            "args": [
+                "manage.main:app",
+                "--port",
+                "33101",
+                "--host",
+                "0.0.0.0",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/apps/manage",
+            "jinja": false,
+            "python": "${workspaceFolder}/apps/manage/.venv/bin/python3",
+            "justMyCode": false
+        },
+        {
+            "name": "Service",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "service.main:app",
+                "--port",
+                "33102",
+                "--host",
+                "0.0.0.0",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/apps/service",
+            "jinja": false,
+            "python": "${workspaceFolder}/apps/service/.venv/bin/python3",
+            "justMyCode": false
+        },
+        {
+            "name": "Application",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "application.main:app",
+                "--port",
+                "33103",
+                "--host",
+                "0.0.0.0",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/apps/application",
+            "jinja": false,
+            "python": "${workspaceFolder}/apps/application/.venv/bin/python3",
+            "justMyCode": false
+        },
+        {
+            "name": "Gateway",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "gateway.main:app",
+                "--port",
+                "33104",
+                "--host",
+                "0.0.0.0",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/apps/gateway",
+            "jinja": false,
+            "python": "${workspaceFolder}/apps/gateway/.venv/bin/python3",
+            "justMyCode": false
+        },
+        {
+            "name": "Mock-App",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "mock_app.main:app",
+                "--port",
+                "33200",
+                "--host",
+                "0.0.0.0",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/apps/mock_app",
+            "jinja": false,
+            "python": "${workspaceFolder}/apps/mock_app/.venv/bin/python3",
+            "justMyCode": false
+        },
+        {
+            "name": "Spatial",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "spatial.main:app",
+                "--port",
+                "33107",
+                "--host",
+                "0.0.0.0",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/apps/spatial",
+            "jinja": false,
+            "python": "${workspaceFolder}/apps/spatial/.venv/bin/python3",
+            "justMyCode": false
+        },
+        {
+            "name": "Python: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "purpose": [
+                "debug-test"
+            ]
+        },
+    ],
+    "compounds": [
+        {
+            "name": "Full Mapa",
+            "configurations": [
+                "SSO",
+                "Manage",
+                "Gateway",
+                "Service",
+                "Application",
+                "Spatial"
+            ],
+            "stopAll": true,
+            "preLaunchTask": "update-all-apps"
+        }
+    ]
+}

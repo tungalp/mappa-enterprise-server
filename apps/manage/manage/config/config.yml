@@ -1,0 +1,45 @@
+domain: "localhost"
+db:
+  url: "Veritabanı bağlantı bilgileri"
+oidc:
+  jwks_uri: "SSO sunucusunun JWKS linki"
+  api_host: "sso api host adresi"
+  app_host: "sso app host adresi"
+  jwt_secret: "top_secret"
+elk:
+  host: "host.docker.internal"
+  port: 5000
+apm:
+  service_name: "mapa-manage"
+  secret_token: ""
+  server_url: "http://host.docker.internal:8200"
+  environment: "mapa-manage-service-environment"
+  body: "all"
+  log_level: "info"
+alembic:
+  migrations_path: "/home/honk/source/mapa/mapa-backend/apps/manage/migrations"
+  url: "postgresql://mapa:12345Abc.@localhost/mapa_test"
+  jwt_secret: "top_secret"
+mail:
+  smtp: "smtp-address"
+  port: 587
+  user_name: "email_address"
+  password: "secret_password"
+  method: "STARTTLS"
+  subject: null
+  mail_header: null
+  mail_header_en: null
+redis:
+  host: "localhost"
+  write_port: 6379
+  read_port: 6379
+  db: 0
+  password: "mapa"
+  prefix: "mapa-manage-redis"
+rabbitmq:
+  exchange_name: "mapa-exchange"
+  host: "localhost"
+  port: 5672
+  username: "mapa"
+  password: "mapa"
+  virtual_host: "/"

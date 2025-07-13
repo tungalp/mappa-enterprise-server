@@ -1,0 +1,29 @@
+db:
+  url: "postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}"
+oidc:
+  jwks_uri: "http://sso-api/api/sso/oidc/jwks"
+elk:
+  host: "logstash"
+  port: 5000
+apm:
+  service_name: "mapa-service"
+  secret_token: ""
+  server_url: "http://apm-server:8200"
+  environment: "mapa-service-service-environment"
+  body: "off"
+  log_level: "info"
+  sanitize_field_names: "password,passwd,pwd,secret,*key,*token*,*session*,*credit*,*card*,*auth*,*principal*,set-cookie,tckno,tcno,vergi,tc,adres,iban,*logo*,*client_id*,*clientid*,*client-id*,*clientId*,*client_id*,*clientId*,*client-id*,*clientid*,*client_id*,*client_secret*,*client_secret*,*client-secret*,*clientSecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*secret_key*,*secret-key*,*secretKey*,*secretkey*,*secret_key*,*secretKey*,*secret-key*,*secretkey*"
+redis:
+  host: ${REDIS_HOST}
+  write_port: ${REDIS_WRITE_PORT}
+  read_port: ${REDIS_READ_PORT}
+  db: ${REDIS_DB}
+  password: ${REDIS_PASSWORD}
+  prefix: ${REDIS_PREFIX}
+rabbitmq:
+  exchange_name: ${RABBIT_EXCHANGE_NAME}
+  host: ${RABBIT_HOST}
+  port: ${RABBIT_PORT}
+  username: ${RABBIT_USERNAME}
+  password: ${RABBIT_PASSWORD}
+  virtual_host: ${RABBIT_V_HOST}

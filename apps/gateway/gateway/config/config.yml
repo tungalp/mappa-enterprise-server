@@ -1,0 +1,31 @@
+db:
+  url: "Veritabanı bağlantı bilgileri"
+oidc:
+  jwks_uri: "SSO sunucusunun JWKS linki"
+elk:
+  host: "host.docker.internal"
+  port: 5000
+apm:
+  service_name: "mapa-gateway"
+  secret_token: ""
+  server_url: "http://host.docker.internal:8200"
+  environment: "mapa-gateway-service-environment"
+  body: "all"
+  log_level: "info"
+alembic:
+  migrations_path: "/home/honk/source/mapa/mapa-backend/apps/gateway/migrations"
+  url: "postgresql://mapa:12345Abc.@localhost/mapa_test"
+redis:
+  host: "localhost"
+  write_port: 6379
+  read_port: 6379
+  db: 0
+  password: "mapa"
+  prefix: "mapa-gateway-redis"
+rabbitmq:
+  exchange_name: "mapa-exchange"
+  host: "localhost"
+  port: 5672
+  username: "mapa"
+  password: "mapa"
+  virtual_host: "/"

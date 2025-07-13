@@ -1,0 +1,26 @@
+db:
+  url: "postgresql+asyncpg://mapa:12345Abc.@localhost/mapa_test"
+oidc:
+  jwks_uri: "http://localhost:33100/api/sso/oidc/jwks"
+  service_host: "http://localhost:33102"
+elk:
+  host: "host.docker.internal"
+  port: 5000
+apm:
+  service_name: "mapa-spatial"
+  secret_token: ""
+  server_url: "http://host.docker.internal:8200"
+  environment: "mapa-spatial-service-environment"
+  body: "all"
+  log_level: "info"
+  sanitize_field_names: "password,passwd,pwd,secret,*key,*token*,*session*,*credit*,*card*,*auth*,*principal*,set-cookie,tckno,tcno,vergi,tc,adres,iban,*logo*,*client_id*,*clientid*,*client-id*,*clientId*,*client_id*,*clientId*,*client-id*,*clientid*,*client_id*,*client_secret*,*client_secret*,*client-secret*,*clientSecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*secret_key*,*secret-key*,*secretKey*,*secretkey*,*secret_key*,*secretKey*,*secret-key*,*secretkey*"
+alembic:
+  migrations_path: "/home/honk/source/mapa/mapa-backend/apps/spatial/migrations"
+  url: "postgresql://postgres:postgres@localhost/mapa_test"
+rabbitmq:
+  exchange_name: "mapa-exchange"
+  host: "localhost"
+  port: 5672
+  username: "mapa"
+  password: "mapa"
+  virtual_host: "/"

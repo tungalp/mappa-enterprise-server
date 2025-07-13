@@ -1,0 +1,34 @@
+[tool.poetry]
+name = "lib-app"
+version = "0.1.1"
+description = ""
+authors = ["kgulenc <kuntaygulenc@gmail.com>"]
+packages = [
+    { include = "mapa" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+lib-core = {path = "../core"}
+fastapi = "^0.115.7"
+gunicorn = "21.2.0"
+uvicorn = {extras = ["standard"], version = "^0.32.1"}
+dependency-injector = {extras = ["yaml"], version = "^4.45.0"}
+python-logstash-async = "2.7.0"
+alembic = "^1.14.1"
+itsdangerous = "2.1.2"
+python-multipart = "0.0.5"
+elastic-apm = "6.22.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "7.4.2"
+pytest-asyncio = "0.21.1"
+pylint = "2.17.5"
+lib-test = {path = "../test"}
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

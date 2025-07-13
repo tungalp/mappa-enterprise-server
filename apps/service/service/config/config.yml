@@ -1,0 +1,29 @@
+db:
+  url: "Veritabanı bağlantı bilgileri"
+oidc:
+  jwks_uri: "SSO sunucusunun JWKS linki"
+elk:
+  host: "host.docker.internal"
+  port: 5000
+apm:
+  service_name: "mapa-service"
+  secret_token: ""
+  server_url: "http://host.docker.internal:8200"
+  environment: "mapa-service-service-environment"
+  body: "off"
+  log_level: "warning"
+  sanitize_field_names: "password,passwd,pwd,secret,*key,*token*,*session*,*credit*,*card*,*auth*,*principal*,set-cookie,tckno,tcno,vergi,tc,adres,iban,*logo*,*client_id*,*clientid*,*client-id*,*clientId*,*client_id*,*clientId*,*client-id*,*clientid*,*client_id*,*client_secret*,*client_secret*,*client-secret*,*clientSecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*secret_key*,*secret-key*,*secretKey*,*secretkey*,*secret_key*,*secretKey*,*secret-key*,*secretkey*"
+redis:
+  host: "localhost"
+  write_port: 6379
+  read_port: 6379
+  db: 0
+  password: "mapa"
+  prefix: "mapa-service-redis-ent"
+rabbitmq:
+  exchange_name: "mapa-exchange"
+  host: "localhost"
+  port: 5672
+  username: "mapa"
+  password: "mapa"
+  virtual_host: "/"

@@ -1,0 +1,46 @@
+[tool.poetry]
+name = "lib-core"
+version = "0.1.6"
+description = ""
+authors = ["kgulenc <kuntaygulenc@gmail.com>"]
+packages = [
+    { include = "mapa" },
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+SQLAlchemy = "^2.0.37"
+geoalchemy2 = "^0.16.0"
+shapely = "^2.1.0"
+httpx = "^0.27.2"
+asyncpg = "^0.30.0"
+psycopg2-binary = "^2.9.10"
+pydantic = "^2.11.1"
+SQLAlchemy-Utils = "^0.41.2"
+nanoid = "^2.0.0"
+python-dateutil = "^2.8.2"
+pyjwt = {extras = ["crypto"], version = "^2.10.0"}
+jwcrypto = "^1.5.6"
+bcrypt = "^4.3.0"
+pyodbc = "^5.2.0"
+urllib3 = "^1.26.20"
+aio_pika = "9.5.5"
+redis = "^4.6.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "7.4.2"
+pytest-asyncio = "0.21.1"
+pylint = "2.17.5"
+lib-test = {path = "../test"}
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = [
+    "poetry-core>=1.0.0",
+    "setuptools"
+]
+build-backend = "poetry.core.masonry.api"
+

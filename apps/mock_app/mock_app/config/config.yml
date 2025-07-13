@@ -1,0 +1,12 @@
+db:
+  url: "Veritabanı bağlantı bilgileri"
+oidc:
+  jwks_uri: "SSO sunucusunun JWKS linki"
+elk:
+  host: "host.docker.internal"
+  port: 5000
+apm:
+  service_name: "mapa-mock_app"
+  secret_token: ""
+  server_url: "http://host.docker.internal:8200"
+  environment: "mapa-mock_app-service-environment"

@@ -1,0 +1,43 @@
+db:
+  url: "Veritabanı bağlantı bilgileri"
+session:
+  secret: "session-secret"
+  timeout: 10080
+oidc:
+  issuer: "oidc_service_issuer"
+  api_host: "sso api host adresi"
+  app_host: "sso app host adresi"
+  jwt_secret: "top_secret"
+  private_key_file: "./private.pem"
+  public_key_file: "./public.pem"
+  short_token_lifetime: 7200
+  long_token_lifetime: 86400
+  id_token_lifetime: 36000
+  refresh_token_lifetime: 2592000
+  jwks_uri: "SSO sunucusunun JWKS linki"
+mail:
+  smtp: "smtp-address"
+  port: 587
+  user_name: "email_address"
+  password: "secret_password"
+  method: "STARTTLS"
+elk:
+  host: "host.docker.internal"
+  port: 5000
+apm:
+  service_name: "mapa-sso"
+  secret_token: ""
+  server_url: "http://host.docker.internal:8200"
+  environment: "mapa-sso-service-environment"
+  body: "all"
+  log_level: "info"
+alembic:
+  migrations_path: "/home/honk/source/mapa/mapa-backend/apps/sso/migrations"
+  url: "postgresql://postgres:postgres@localhost/mapa_test"
+rabbitmq:
+  exchange_name: "mapa-exchange"
+  host: "localhost"
+  port: 5672
+  username: "mapa"
+  password: "mapa"
+  virtual_host: "/"

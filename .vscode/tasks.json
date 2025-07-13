@@ -1,0 +1,75 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "sso-poetry-install",
+            "type": "shell",
+            "command": "poetry update && exit",
+            "options": {
+                "cwd": "${workspaceFolder}/apps/sso"
+            }
+        },
+        {
+            "label": "manage-poetry-install",
+            "type": "shell",
+            "command": "poetry update && exit",
+            "options": {
+                "cwd": "${workspaceFolder}/apps/manage"
+            }
+        },
+        {
+            "label": "gateway-poetry-install",
+            "type": "shell",
+            "command": "poetry update && exit",
+            "options": {
+                "cwd": "${workspaceFolder}/apps/gateway"
+            }
+        },
+        {
+            "label": "service-poetry-install",
+            "type": "shell",
+            "command": "poetry update && exit",
+            "options": {
+                "cwd": "${workspaceFolder}/apps/service"
+            }
+        },
+        {
+            "label": "application-poetry-install",
+            "type": "shell",
+            "command": "poetry update && exit",
+            "options": {
+                "cwd": "${workspaceFolder}/apps/application"
+            }
+        },
+        {
+            "label": "mock_app-poetry-install",
+            "type": "shell",
+            "command": "poetry update && exit",
+            "options": {
+                "cwd": "${workspaceFolder}/apps/mock_app"
+            }
+        },
+        {
+            "label": "spatial-poetry-install",
+            "type": "shell",
+            "command": "poetry update && exit",
+            "options": {
+                "cwd": "${workspaceFolder}/apps/spatial"
+            }
+        },
+        {
+            "label": "update-all-apps",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "sso-poetry-install",
+                "manage-poetry-install",
+                "gateway-poetry-install",
+                "service-poetry-install",
+                "application-poetry-install",
+                "spatial-poetry-install"
+            ]
+        }
+    ]
+}

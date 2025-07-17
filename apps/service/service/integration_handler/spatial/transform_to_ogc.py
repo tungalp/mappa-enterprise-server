@@ -1,11 +1,10 @@
-import json
 from typing import Any
 from uuid import uuid4
 from mapa.core.data.query_args import Filter, FilterGroup, FilterOp, FilterType, QueryArgs
 from owslib.fes2 import BBox,And, Or, Not, PropertyIsEqualTo, \
     PropertyIsBetween, PropertyIsGreaterThan, PropertyIsGreaterThanOrEqualTo, PropertyIsLessThan, \
     PropertyIsLessThanOrEqualTo, PropertyIsLike, PropertyIsNotEqualTo,PropertyIsNull, \
-    BBox, Intersects, Contains, Disjoint, Within, Touches, Overlaps, Equals  
+    Intersects, Contains, Disjoint, Within, Touches, Overlaps, Equals  
 from lxml import etree
 from pygml.v32 import encode_v32, GeomDict
 from pyproj import Transformer,Proj
@@ -38,7 +37,7 @@ class TransformToOGC:
 
         root = etree.Element("{%s}Filter" % self.DEFAULT_NS_MAP["fes"], {}, {})
         filters = []
-        if (query_args.where):
+        if query_args.where:
             for filter_expr in query_args.where:
                 if filter_expr.type == FilterType.FILTER:
                     filter_el = self._transform_filter(filter_expr, target_proj)  # type: ignore

@@ -1,0 +1,51 @@
+{
+    "name": "MAPPA Backend",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "app",
+    "workspaceFolder": "/workspace",
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "njpwerner.autodocstring",
+                "KevinRose.vsc-python-indent",
+                "VisualStudioExptTeam.vscodeintellicode",
+                "ms-python.pylint",
+                "ms-python.black-formatter",
+                "charliermarsh.ruff"
+            ],
+            "settings": { 
+                "python.defaultInterpreterPath": "/usr/local/bin/python",
+                "python.testing.pytestPath": "/usr/local/py-utils/bin/pytest",
+                "python.formatting.provider": "black",
+                "python.linting.enabled": true,
+                "python.linting.pylintEnabled": true,
+                "python.linting.ruffEnabled": true,
+                "python.analysis.typeCheckingMode": "basic"
+            }	  
+        }
+    },
+
+    "forwardPorts": [
+        33100,  // SSO
+        33101,  // Manage
+        33102,  // Service
+        33103,  // Application
+        33104,  // Gateway
+        33105,  // ETL
+        33106,  // BPM
+        33107,  // Spatial
+        33200,  // MockApp
+        5432,   // PostgreSQL
+        5672,   // RabbitMQ AMQP
+        15672,  // RabbitMQ Management UI
+        6379    // Redis
+    ],
+
+    "postCreateCommand": "poetry config virtualenvs.in-project false",
+
+    "remoteUser": "vscode"
+
+}

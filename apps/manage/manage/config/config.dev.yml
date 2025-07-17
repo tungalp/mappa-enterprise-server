@@ -1,6 +1,6 @@
 domain: "localhost:33001"
 db:
-  url: "postgresql+asyncpg://mapa:12345Abc.@localhost/mapa_test"
+  url: "postgresql+asyncpg://mapa:12345Abc.@postgres/mapa_test"
 oidc:
   jwks_uri: "http://localhost:33100/api/sso/oidc/jwks"
   jwt_secret: "b3AXVPcKEL8UPZ07TgPYA"
@@ -19,7 +19,7 @@ apm:
   sanitize_field_names: "password,passwd,pwd,secret,*key,*token*,*session*,*credit*,*card*,*auth*,*principal*,set-cookie,tckno,tcno,vergi,tc,adres,iban,*logo*,*client_id*,*clientid*,*client-id*,*clientId*,*client_id*,*clientId*,*client-id*,*clientid*,*client_id*,*client_secret*,*client_secret*,*client-secret*,*clientSecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*secret_key*,*secret-key*,*secretKey*,*secretkey*,*secret_key*,*secretKey*,*secret-key*,*secretkey*"
 alembic:
   migrations_path: "/home/honk/source/mapa/mapa-backend/apps/manage/migrations"
-  url: "postgresql://postgres:postgres@localhost/mapa_test"
+  url: "postgresql://postgres:postgres@postgres/mapa_test"
 mail:
   smtp: "smtp.gmail.com"
   user_name: "espnoreply20@gmail.com"
@@ -27,7 +27,7 @@ mail:
   method: "STARTTLS"
   port: 587
 redis:
-  host: "localhost"
+  host: "redis"
   write_port: 6379
   read_port: 6379
   db: 0
@@ -35,7 +35,7 @@ redis:
   prefix: "mapa-manage-redis"
 rabbitmq:
   exchange_name: "mapa-exchange"
-  host: "localhost"
+  host: "rabbitmq"
   port: 5672
   username: "mapa"
   password: "mapa"

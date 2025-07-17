@@ -33,7 +33,7 @@ apm:
   log_level: "info"
 alembic:
   migrations_path: "/home/honk/source/mapa/mapa-backend/apps/sso/migrations"
-  url: "postgresql://postgres:postgres@localhost/mapa_test"
+  url: "postgresql://postgres:postgres@postgres/mapa_test"
 rabbitmq:
   exchange_name: "mapa-exchange"
   host: "localhost"

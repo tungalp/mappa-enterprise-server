@@ -19,8 +19,12 @@
             ],
             "cwd": "${workspaceFolder}/apps/sso",
             "jinja": false,
-            "python": "${workspaceFolder}/apps/sso/.venv/bin/python3",
-            "justMyCode": false
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-sso-cdBGbSSc-py3.12/bin/python3",
+            "env": {
+                "PYTHONPATH": "/workspace"
+            }
         },
         {
             "name": "Manage",
@@ -37,8 +41,12 @@
             ],
             "cwd": "${workspaceFolder}/apps/manage",
             "jinja": false,
-            "python": "${workspaceFolder}/apps/manage/.venv/bin/python3",
-            "justMyCode": false
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-manage-TJPr9HMo-py3.12/bin/python3",
+            "env": {
+                "PYTHONPATH": "/workspace"
+            }
         },
         {
             "name": "Service",
@@ -55,8 +63,12 @@
             ],
             "cwd": "${workspaceFolder}/apps/service",
             "jinja": false,
-            "python": "${workspaceFolder}/apps/service/.venv/bin/python3",
-            "justMyCode": false
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-service-wNuy68hN-py3.12/bin/python3",
+            "env": {
+                "PYTHONPATH": "/workspace"
+            }
         },
         {
             "name": "Application",
@@ -73,8 +85,12 @@
             ],
             "cwd": "${workspaceFolder}/apps/application",
             "jinja": false,
-            "python": "${workspaceFolder}/apps/application/.venv/bin/python3",
-            "justMyCode": false
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-application-YIXoinGF-py3.12/bin/python3",
+            "env": {
+                "PYTHONPATH": "/workspace"
+            }
         },
         {
             "name": "Gateway",
@@ -91,8 +107,12 @@
             ],
             "cwd": "${workspaceFolder}/apps/gateway",
             "jinja": false,
-            "python": "${workspaceFolder}/apps/gateway/.venv/bin/python3",
-            "justMyCode": false
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-gateway-NrR3bvlK-py3.12/bin/python3",
+            "env": {
+                "PYTHONPATH": "/workspace"
+            }
         },
         {
             "name": "Mock-App",
@@ -109,8 +129,11 @@
             ],
             "cwd": "${workspaceFolder}/apps/mock_app",
             "jinja": false,
-            "python": "${workspaceFolder}/apps/mock_app/.venv/bin/python3",
-            "justMyCode": false
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "/workspace"
+            }
         },
         {
             "name": "Spatial",
@@ -127,8 +150,12 @@
             ],
             "cwd": "${workspaceFolder}/apps/spatial",
             "jinja": false,
-            "python": "${workspaceFolder}/apps/spatial/.venv/bin/python3",
-            "justMyCode": false
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-spatial-O8qH7qzs-py3.12/bin/python3",
+            "env": {
+                "PYTHONPATH": "/workspace"
+            }
         },
         {
             "name": "Python: Current File",

@@ -1,5 +1,5 @@
 db:
-  url: "postgresql+asyncpg://postgres:postgres@localhost/mapa_test"
+  url: "postgresql+asyncpg://postgres:postgres@postgres/mapa_test"
 oidc:
   jwks_uri: "http://localhost:33100/api/sso/oidc/jwks"
 elk:

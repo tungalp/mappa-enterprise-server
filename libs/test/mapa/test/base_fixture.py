@@ -8,11 +8,11 @@ from mapa.core.data.db import Database
 class BaseFixture:
     """Tüm Fikstür sınıfılarının üst sınıfı"""
 
-    db_url_init = "postgresql://postgres:postgres@localhost/mapa_test"
-    db_url = "postgresql://mapa:12345Abc.@localhost/mapa_test"
+    db_url_init = "postgresql://postgres:postgres@postgres/mapa_test"
+    db_url = "postgresql://mapa:12345Abc.@postgres/mapa_test"
 
-    db_url_async_init = "postgresql+asyncpg://postgres:postgres@localhost/mapa_test"
-    db_url_async = "postgresql+asyncpg://mapa:12345Abc.@localhost/mapa_test"
+    db_url_async_init = "postgresql+asyncpg://postgres:postgres@postgres/mapa_test"
+    db_url_async = "postgresql+asyncpg://mapa:12345Abc.@postgres/mapa_test"
 
     tenant_id = "10a2238f-4d1e-4626-9f3c-799d3ef5e96d"
     issuer = "http://localhost:33000"

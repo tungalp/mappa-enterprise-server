@@ -19,7 +19,7 @@
             ],
             "cwd": "${workspaceFolder}/apps/sso",
             "jinja": false,
-            "justMyCode": false,
+            "justMyCode": true,
             "console": "integratedTerminal",
             "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-sso-cdBGbSSc-py3.12/bin/python3",
             "env": {
@@ -41,7 +41,7 @@
             ],
             "cwd": "${workspaceFolder}/apps/manage",
             "jinja": false,
-            "justMyCode": false,
+            "justMyCode": true,
             "console": "integratedTerminal",
             "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-manage-TJPr9HMo-py3.12/bin/python3",
             "env": {
@@ -63,7 +63,7 @@
             ],
             "cwd": "${workspaceFolder}/apps/service",
             "jinja": false,
-            "justMyCode": false,
+            "justMyCode": true,
             "console": "integratedTerminal",
             "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-service-wNuy68hN-py3.12/bin/python3",
             "env": {
@@ -85,7 +85,7 @@
             ],
             "cwd": "${workspaceFolder}/apps/application",
             "jinja": false,
-            "justMyCode": false,
+            "justMyCode": true,
             "console": "integratedTerminal",
             "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-application-YIXoinGF-py3.12/bin/python3",
             "env": {
@@ -107,7 +107,7 @@
             ],
             "cwd": "${workspaceFolder}/apps/gateway",
             "jinja": false,
-            "justMyCode": false,
+            "justMyCode": true,
             "console": "integratedTerminal",
             "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-gateway-NrR3bvlK-py3.12/bin/python3",
             "env": {
@@ -129,7 +129,7 @@
             ],
             "cwd": "${workspaceFolder}/apps/mock_app",
             "jinja": false,
-            "justMyCode": false,
+            "justMyCode": true,
             "console": "integratedTerminal",
             "env": {
                 "PYTHONPATH": "/workspace"
@@ -150,7 +150,7 @@
             ],
             "cwd": "${workspaceFolder}/apps/spatial",
             "jinja": false,
-            "justMyCode": false,
+            "justMyCode": true,
             "console": "integratedTerminal",
             "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-spatial-O8qH7qzs-py3.12/bin/python3",
             "env": {
@@ -163,7 +163,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "justMyCode": false,
+            "justMyCode": true,
             "purpose": [
                 "debug-test"
             ]

@@ -162,14 +162,24 @@ class TileHandler:
         # tile url /typename/z/x/y.format
         layer = service_request.path_params.get('typename') or ""
         ret_format = service_request.path_params.get('format') or ""
-        mime_format = self.format_dict[ret_format]
-        tile_matrix = f"{tile_matrix_set}:{service_request.path_params['z']}"
-        tile_col = f"{service_request.path_params['x']}"
-        tile_row = f"{service_request.path_params['y']}"
+        # Changed by Bekir - mime_format = self.format_dict[ret_format] or "" 
+        mime_format = "" if ret_format == "" else self.format_dict.get(ret_format, "")
+        # Changed by Bekir - tile_matrix = f"{tile_matrix_set}:{service_request.path_params['z']}"
+        tile_matrix = 0
+        tile_col = 0
+        tile_row = 0   
+        if len(service_request.path_params) != 0:
+            tile_matrix = f"{tile_matrix_set}:{service_request.path_params['z']}"
+            tile_col = f"{service_request.path_params['x']}"
+            tile_row = f"{service_request.path_params['y']}"
+        
+            return f"{backend.endpoint}?service={service}&request={request}&version={version}&style={style}" + \
+                f"&layer={layer}&format={mime_format}&tilematrixset={tile_matrix_set}" + \
+                f"&tilematrix={tile_matrix}&tilecol={tile_col}&tilerow={tile_row}"
+        else:
+            # http://localhost:33102/Admin/mapExtApi/wmtsRota?service=WMTS&request=GetCapabilities
 
-        return f"{backend.endpoint}?service={service}&request={request}&version={version}&style={style}" + \
-            f"&layer={layer}&format={mime_format}&tilematrixset={tile_matrix_set}" + \
-            f"&tilematrix={tile_matrix}&tilecol={tile_col}&tilerow={tile_row}"
+            return f"{backend.endpoint}service={service}&request=GetCapabilities"
 
     def _create_xyz_url_path(self, backend: SpatialExternalBackend, service_request: ServiceRequest) -> str:
         api_route = APIRoute(backend.endpoint, endpoint=dummy_endpoint_func, methods=[backend.method])

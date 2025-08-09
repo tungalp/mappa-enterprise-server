@@ -1,18 +1,21 @@
 from __future__ import annotations
 
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 from uuid import UUID
 
 from mapa.spatial.bookmark.bookmark_model import Bookmark
 from mapa.spatial.constant import MapWidgetType, SridTypes
-from mapa.spatial.map_base_layer.map_base_layer_model import MapBaseLayer
-from mapa.spatial.map_layer.map_layer_model import MapLayer
 from mapa.spatial.models.merge_layer_model import MergeLayer
+from mapa.spatial.map_base_layer.map_base_layer_model import MapBaseLayer
 from mapa.spatial.namespace.namespace_model import Namespace
 from mapa.spatial.reference.reference_model import Reference
 from pydantic import BaseModel
 
 
+#  Model import edilirken circular dep. hatasını gidermek için tanımlanmıştır.
+if TYPE_CHECKING:
+    from mapa.spatial.map_layer.map_layer_model import MapLayer
+    
 # widget_types json parametresi type model
 class Types(BaseModel):
     """Types Modeli"""
@@ -39,7 +42,7 @@ class Map(BaseModel):
     bookmarks: List[Bookmark] | None = None
     # map_layers: Optional[List['MapLayer']] | None = None
     # map_base_layers: Optional[List['MapBaseLayer']] | None = None
-    map_layers: List[MapLayer] | None = None
+    map_layers: List[MapLayer] | None = None # Orginal
     map_base_layers: List[MapBaseLayer] | None = None
     merge_layers: List[MergeLayer] | None = None
 

@@ -10,7 +10,6 @@ from pydantic import BaseModel
 if TYPE_CHECKING:
     from mapa.spatial.map.map_model import Map
 
-
 class Params(BaseModel):
     """Params Modeli"""
     visible: bool | None = None
@@ -25,7 +24,8 @@ class MapLayer(BaseModel):
     params: Params | None = None
     order: int
     map_id: UUID
-    map: Optional['Map'] | None = None
+    # map: Optional['Map'] | None = None # Orginal
+    map: Optional[Map] | None = None 
     layer_definition_id: UUID | None = None
     layer_definition: LayerDefinition | None = None
 
@@ -59,4 +59,4 @@ class UpdateAllMapLayer(BaseModel):
 #  Model import edilirken circular dep. hatasını gidermek için tanımlanmıştır.
 #  ve bundan dolayı da map property'si Optional keyword'u ile tanımlanmıştır
 # from mapa.spatial.map.map_model import Map
-# MapLayer.model_rebuild()
+#  MapLayer.model_rebuild()

@@ -20,7 +20,7 @@ class MapBaseLayer(BaseModel):
     base_layer_id: UUID
 
     base_layer: BaseLayer | None = None
-    map: Optional['Map'] | None = None
+    map: Optional[Map] | None = None
 
 
 class CreateMapBaseLayer(BaseModel):

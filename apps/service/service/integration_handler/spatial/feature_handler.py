@@ -166,6 +166,14 @@ class FeatureHandler:
         
             service_response.body = json.loads(service_response.body) if len(service_response.body) > 0 else "" # type: ignore
 
+            # Yalnızca WFS servisinin de kullanılmasını sağlamak için geçici olarak eklendi.
+            # Bekir 08.08.2025 
+            # Convert to GeoJSON FeatureCollection
+            service_response.body = {
+                "type": "FeatureCollection",
+                "features": service_response.body["items"]  # Directly use items list
+            }
+
         return service_response
     
     async def _execute_ad_hoc(self, spatial_conn: SpatialConnection, service_request: ServiceRequest) -> ServiceResponse:        

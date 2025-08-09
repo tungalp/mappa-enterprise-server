@@ -150,7 +150,7 @@
             ],
             "cwd": "${workspaceFolder}/apps/spatial",
             "jinja": false,
-            "justMyCode": true,
+            "justMyCode": false,
             "console": "integratedTerminal",
             "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-spatial-O8qH7qzs-py3.12/bin/python3",
             "env": {

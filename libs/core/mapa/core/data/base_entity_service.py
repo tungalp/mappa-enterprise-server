@@ -83,18 +83,18 @@ class BaseEntityService(BaseService, Generic[RepositoryType, ModelType, CreateTy
             offset=query_args.offset
         )
 
-    async def create(self, input_obj: CreateType, tenant_id: str | None = None) -> ModelType:
+    async def create(self, input_obj: CreateType, tenant_id: str | None = None, user_id: str | None = None ) -> ModelType:
         """Yeni bir model oluşturur"""
 
-        db_obj = await self.repo.create(input_obj.model_dump(exclude_unset=True), tenant_id)
+        db_obj = await self.repo.create(input_obj.model_dump(exclude_unset=True), tenant_id, user_id)
         ret_val = self.model_type.model_validate(self.repo.dict(db_obj))
         return ret_val
 
-    async def create_all(self, input_objs: List[CreateType], tenant_id: str | None = None) -> List[ModelType]:
+    async def create_all(self, input_objs: List[CreateType], tenant_id: str | None = None, user_id: str | None = None ) -> List[ModelType]:
         """Yeni bir model oluşturur"""
 
         dict_objs = [input_obj.model_dump(exclude_unset=True) for input_obj in input_objs]
-        db_objs = await self.repo.create_all(dict_objs, tenant_id)
+        db_objs = await self.repo.create_all(dict_objs, tenant_id, user_id)
         ret_val: List[ModelType] = [
             self.model_type.model_validate(
                 self.repo.dict(db_obj)
@@ -103,25 +103,25 @@ class BaseEntityService(BaseService, Generic[RepositoryType, ModelType, CreateTy
         return ret_val
 
 
-    async def update(self, obj_id: Any, input_obj: UpdateType, tenant_id: str | None = None) -> ModelType | None:
+    async def update(self, obj_id: Any, input_obj: UpdateType, tenant_id: str | None = None, user_id: str | None = None ) -> ModelType | None:
         """Verilen modeli günceller"""
 
-        db_obj = await self.repo.update(obj_id, input_obj.model_dump(exclude_unset=True), tenant_id)
+        db_obj = await self.repo.update(obj_id, input_obj.model_dump(exclude_unset=True), tenant_id, user_id)
         ret_val: ModelType | None = None
         if db_obj:
             ret_val = self.model_type.model_validate(self.repo.dict(db_obj))
         return ret_val
 
-    async def update_by_ids(self, obj_ids: List[Any], input_obj: UpdateType, tenant_id: str | None = None) -> bool:
+    async def update_by_ids(self, obj_ids: List[Any], input_obj: UpdateType, tenant_id: str | None = None, user_id: str | None = None ) -> bool:
         """Verilen modeli günceller"""
 
-        ret_val = await self.repo.update_by_ids(obj_ids, input_obj.model_dump(exclude_unset=True), tenant_id)
+        ret_val = await self.repo.update_by_ids(obj_ids, input_obj.model_dump(exclude_unset=True), tenant_id, user_id)
         return ret_val
 
-    async def update_all(self, query_args: QueryArgs, input_obj: UpdateAllType, tenant_id: str | None = None) -> int:
+    async def update_all(self, query_args: QueryArgs, input_obj: UpdateAllType, tenant_id: str | None = None, user_id: str | None = None ) -> int:
         """Sorgu sonucunda gelen kayıtları verilen modeldeki değerlerle günceller"""
 
-        ret_val = await self.repo.update_all(query_args, input_obj.model_dump(exclude_unset=True), tenant_id)
+        ret_val = await self.repo.update_all(query_args, input_obj.model_dump(exclude_unset=True), tenant_id, user_id)
         return ret_val
 
     async def delete(self, obj_id: Any, tenant_id: str | None = None) -> bool:

@@ -9,6 +9,7 @@ from spatial.bookmark.router import router as bookmark_router
 from spatial.config.app_container import AppContainer
 from spatial.connection.router import router as connection_router
 from spatial.definition.router import router as definition_router
+from spatial.file_store.router import router as file_store_router
 from spatial.hook.router import router as hook_router
 from spatial.layer.router import router as layer_router
 from spatial.layer_definition.router import router as layer_definition_router
@@ -119,6 +120,10 @@ def create_application():
         definition_router, prefix="/api/spatial/definition", tags=["definition"]
     )
 
+    application.include_router(
+        file_store_router, prefix="/api/spatial/file_store", tags=["file_store"]
+    )
+    
     application.include_router(
         layer_definition_router,
         prefix="/api/spatial/layer_definition",

@@ -40,7 +40,23 @@ class DataType(str, Enum):
     GeoTiff = 'image/geotiff'
     PnGeoTiff8 = 'image/geotiff8'
     Svg = 'image/svg'
+    File = "file"
 
+class FileType(str, Enum):
+    """FleType"""
+
+    kml = '.kml'
+    kmz = '.kmz'
+    shp = '.shp'
+    geojson = '.geojson'
+    pdf = '.pdf'
+    gif = '.gif'
+    jpeg = '.jpeg'
+    png = '.png'
+    tiff = '.tiff'
+    ecw = '.ecw'
+    zip = '.zip'
+    rar = '.rar'
 
 class GeometryType(str, Enum):
     """GeometryType"""
@@ -112,7 +128,7 @@ class RouteParamsTypes(str, Enum):
     Wms = 'wms'
     Tile = 'tile'
     Transaction = 'transaction'
-
+    File = 'file'
 
 class MapServiceTypes(str, Enum):
     """MapServiceTypes"""
@@ -172,6 +188,8 @@ class ApiScopeType:
   EDIT_BOOKMARK = 'edit:bookmark'
   QUERY_CONNECTION = 'query:connection'
   EDIT_CONNECTION = 'edit:connection'
+  QUERY_FILESTORE = 'query:file_store'
+  EDIT_FILESTORE = 'edit:file_store'
   QUERY_DEFINITION = 'query:definition'
   EDIT_DEFINITION = 'edit:definition'
   QUERY_HOOK = 'query:hook'

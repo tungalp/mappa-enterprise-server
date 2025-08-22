@@ -170,13 +170,17 @@ class BaseRepository(ABC, Generic[EntityType]):
 
         return ret_val
 
-    async def create(self, create_dict: Dict[str, Any], tenant_id: str | None = None) -> EntityType:
+    async def create(self, create_dict: Dict[str, Any], tenant_id: str | None = None, user_id: str | None = None ) -> EntityType:
         """Yeni bir kayıt oluşturur"""
 
         # Oluşturma zamanı eklenir
         if hasattr(self.entity_type, "created_at"):
             create_dict["created_at"] = datetime.now()
-
+  
+        # Oluşturan user id eklenir
+        if hasattr(self.entity_type, "creator_user_id"):
+            create_dict["creator_user_id"] = user_id
+                
         db_obj = self.entity_type(**create_dict)
         async with self._db.session() as session:
             if tenant_id:
@@ -188,13 +192,17 @@ class BaseRepository(ABC, Generic[EntityType]):
 
         return db_obj
 
-    async def create_all(self, create_dicts: List[Dict[str, Any]], tenant_id: str | None = None) -> List[EntityType]:
+    async def create_all(self, create_dicts: List[Dict[str, Any]], tenant_id: str | None = None, user_id: str | None = None ) -> List[EntityType]:
         """Yeni kayıtları oluşturur"""
         db_objs: List[EntityType] = []
         for create_dict in create_dicts:
             # Oluşturma zamanı eklenir
             if hasattr(self.entity_type, "created_at"):
                 create_dict["created_at"] = datetime.now()
+                
+            # Oluşturan user id eklenir
+            if hasattr(self.entity_type, "creator_user_id"):
+                create_dict["creator_user_id"] = user_id
 
             db_obj = self.entity_type(**create_dict)
             db_obj.tenant_id = tenant_id
@@ -209,12 +217,16 @@ class BaseRepository(ABC, Generic[EntityType]):
 
         return db_objs
 
-    async def update(self, obj_id: Any, update_dict: Dict[str, Any], tenant_id: str | None = None) -> EntityType:
+    async def update(self, obj_id: Any, update_dict: Dict[str, Any], tenant_id: str | None = None, user_id: str | None = None ) -> EntityType:
         """Id si verilen kaydı günceller"""
 
         # Günceleme zamanı eklenir
         if hasattr(self.entity_type, "updated_at"):
             update_dict["updated_at"] = datetime.now()
+            
+        # Günceleyen user id eklenir
+        if hasattr(self.entity_type, "updater_user_id"):
+            update_dict["updater_user_id"] = user_id
 
         stmt = update_db(self.entity_type). \
             where(self._primary_key == obj_id). \
@@ -233,11 +245,15 @@ class BaseRepository(ABC, Generic[EntityType]):
             return None
         return await self.get(obj_id, tenant_id)
 
-    async def update_by_ids(self, obj_ids: List[Any], update_dict: Dict[str, Any], tenant_id: str | None = None) -> bool:
+    async def update_by_ids(self, obj_ids: List[Any], update_dict: Dict[str, Any], tenant_id: str | None = None, user_id: str | None = None ) -> bool:
         # Günceleme zamanı eklenir
         if hasattr(self.entity_type, "updated_at"):
             update_dict["updated_at"] = datetime.now()
 
+        # Günceleyen user id eklenir
+        if hasattr(self.entity_type, "updater_user_id"):
+            update_dict["updater_user_id"] = user_id
+            
         stmt = update_db(self.entity_type)
 
         # Sorgu parametreleri sorgu cümlesine eklenir.
@@ -261,13 +277,17 @@ class BaseRepository(ABC, Generic[EntityType]):
 
         return ret_val
 
-    async def update_all(self, query_args: QueryArgs, update_dict: Dict[str, Any], tenant_id: str | None = None) -> int:
+    async def update_all(self, query_args: QueryArgs, update_dict: Dict[str, Any], tenant_id: str | None = None, user_id: str | None = None ) -> int:
         """Sorgu parametelerine uyan kayıtları günceller"""
 
         # Günceleme zamanı eklenir
         if hasattr(self.entity_type, "updated_at"):
             update_dict["updated_at"] = datetime.now()
 
+        # Günceleyen user id eklenir
+        if hasattr(self.entity_type, "updater_user_id"):
+            update_dict["updater_user_id"] = user_id
+            
         stmt = update_db(self.entity_type)
 
         # Sorgu parametreleri sorgu cümlesine eklenir.

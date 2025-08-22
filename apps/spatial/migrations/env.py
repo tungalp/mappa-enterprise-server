@@ -10,6 +10,7 @@ from mapa.spatial.namespace.namespace_entity import NamespaceEntity
 from mapa.spatial.map_layer.map_layer_entity import MapLayerEntity
 from mapa.spatial.map.map_entity import MapEntity
 from mapa.spatial.connection.connection_entity import ConnectionEntity
+from mapa.spatial.file_store.file_store_entity import FileStoreEntity
 from mapa.spatial.layer.layer_entity import LayerEntity
 from mapa.spatial.definition.definition_entity import DefinitionEntity
 from mapa.spatial.layer_definition.layer_definition_entity import LayerDefinitionEntity
@@ -39,6 +40,7 @@ target_metadata_all = [
     NamespaceEntity.metadata,
     MapEntity.metadata,
     ConnectionEntity.metadata,
+    FileStoreEntity.metadata,
     LayerEntity.metadata,
     DefinitionEntity.metadata,
     LayerDefinitionEntity.metadata,

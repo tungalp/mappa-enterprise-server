@@ -53,7 +53,9 @@ class WmsHandler:
         
         # Backend bilgileri
         backend: SpatialExternalBackend = spatial_conn.backend  # type: ignore
-        
+        if not backend.endpoint.endswith("?"):
+            backend.endpoint += "?" # add last char ? if not exist
+            
         api_route = APIRoute(backend.endpoint, endpoint=dummy_endpoint_func, methods=[backend.method])
         url_path = api_route.url_path_for("dummy_endpoint_func", **(service_request.path_params or {}))
         client_params = {

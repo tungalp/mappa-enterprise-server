@@ -47,6 +47,10 @@ class FeatureHandler:
         auth = self._create_auth(conn_info)
         
         backend: SpatialExternalBackend = spatial_conn.backend # type: ignore
+        if backend.endpoint.endswith("/"):
+            backend.endpoint = backend.endpoint[:-1]  # remove last char / if exist
+        if not backend.endpoint.endswith("?"):
+            backend.endpoint += "?" # add last char ? if not exist
         api_route = APIRoute(backend.endpoint, endpoint=dummy_endpoint_func, methods=[backend.method])
         url_path = api_route.url_path_for("dummy_endpoint_func", **(service_request.path_params or {}))
         client_params = {

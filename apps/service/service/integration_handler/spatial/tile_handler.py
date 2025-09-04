@@ -168,6 +168,10 @@ class TileHandler:
         tile_matrix = 0
         tile_col = 0
         tile_row = 0   
+        if backend.endpoint.endswith("/"):
+            backend.endpoint = backend.endpoint[:-1] 
+        if backend.endpoint.endswith("?"):
+            backend.endpoint = backend.endpoint[:-1]  # remove last char ? if exist
         if len(service_request.path_params) != 0:
             tile_matrix = f"{tile_matrix_set}:{service_request.path_params['z']}"
             tile_col = f"{service_request.path_params['x']}"
@@ -177,24 +181,36 @@ class TileHandler:
                 f"&layer={layer}&format={mime_format}&tilematrixset={tile_matrix_set}" + \
                 f"&tilematrix={tile_matrix}&tilecol={tile_col}&tilerow={tile_row}"
         else:
-            # http://localhost:33102/Admin/mapExtApi/wmtsRota?service=WMTS&request=GetCapabilities
-
-            return f"{backend.endpoint}service={service}&request=GetCapabilities"
-
+            if backend.endpoint.endswith("?"):
+                return f"{backend.endpoint}{service_request.query_string}"
+            else:
+                return f"{backend.endpoint}?{service_request.query_string}"
+            
     def _create_xyz_url_path(self, backend: SpatialExternalBackend, service_request: ServiceRequest) -> str:
+        if backend.endpoint.endswith("?"):
+            backend.endpoint = backend.endpoint[:-1]  # remove last char ? if exist
         api_route = APIRoute(backend.endpoint, endpoint=dummy_endpoint_func, methods=[backend.method])
         url_path = api_route.url_path_for("dummy_endpoint_func", **(service_request.path_params or {}))
 
         return url_path
 
     def _create_tms_url_path(self, backend: SpatialExternalBackend, service_request: ServiceRequest) -> str:
+        if backend.endpoint.endswith("?"):
+            backend.endpoint = backend.endpoint[:-1]  # remove last char ? if exist
         api_route = APIRoute(backend.endpoint, endpoint=dummy_endpoint_func, methods=[backend.method])
         cp_params = service_request.path_params.copy()
-        # TMS servisi için eksenin yönü değiştirilir.
-        y = cp_params["y"]
-        z = cp_params["z"]
-        cp_params["y"] = (2^z) - y - 1
-        url_path = api_route.url_path_for("dummy_endpoint_func", **(cp_params))
+        if len(service_request.path_params) != 0:
+            # TMS servisi için eksenin yönü değiştirilir.
+            y = cp_params["y"]
+            z = cp_params["z"]
+            cp_params["y"] = (2**z) - y - 1
+            url_path = api_route.url_path_for("dummy_endpoint_func", **(cp_params))
+        else:
+            if backend.endpoint.endswith("/"):
+                url_path = f"{backend.endpoint}{service_request.query_string}"
+            else:
+                return f"{backend.endpoint}/{service_request.query_string.split("=")[1]}"
+            
 
         return url_path
             

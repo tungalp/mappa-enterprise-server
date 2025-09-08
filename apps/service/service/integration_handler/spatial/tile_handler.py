@@ -187,8 +187,8 @@ class TileHandler:
                 return f"{backend.endpoint}?{service_request.query_string}"
             
     def _create_xyz_url_path(self, backend: SpatialExternalBackend, service_request: ServiceRequest) -> str:
-        if backend.endpoint.endswith("?"):
-            backend.endpoint = backend.endpoint[:-1]  # remove last char ? if exist
+        if not backend.endpoint.endswith("?"):
+            backend.endpoint = f"{backend.endpoint}?" # add last char ? if exist
         api_route = APIRoute(backend.endpoint, endpoint=dummy_endpoint_func, methods=[backend.method])
         url_path = api_route.url_path_for("dummy_endpoint_func", **(service_request.path_params or {}))
 

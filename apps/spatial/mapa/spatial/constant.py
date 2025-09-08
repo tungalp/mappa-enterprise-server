@@ -41,6 +41,8 @@ class DataType(str, Enum):
     PnGeoTiff8 = 'image/geotiff8'
     Svg = 'image/svg'
     File = "file"
+    Xyz = "xyz"
+    Quantized_Mesh = "quantized-mesh-1.0"
 
 class FileType(str, Enum):
     """FleType"""

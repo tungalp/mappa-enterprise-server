@@ -1,15 +1,19 @@
 import json
+import time
 from typing import Any
 from fastapi.routing import APIRoute
 from fastapi.requests import Request as FastapiRequest
 from fastapi.responses import Response as FastapiResponse
-from httpx import AsyncClient, BasicAuth
+from httpx import AsyncClient, BasicAuth, Timeout
+import httpx
+import orjson
 from pydantic import BaseModel, TypeAdapter
 from mapa.core.data.query_args import QueryArgs
 from mapa.gateway.connection_info.authentication_info_model import BasicAuthAuthenticationInfo
 from mapa.gateway.connection_info.connection_info_model import ConnectionInfo
 from mapa.gateway.constant import AuthenticationInfoTypes
 from mapa.gateway.integration.integration_model import SpatialConnection, SpatialExternalBackend, WmsServiceFormat
+from service.http_client.http_client import get_global_client
 from service.integration_handler.integration_handler import IntegrationHandler
 from service.integration_handler.spatial.transform_to_cql import TransformToCQL
 from service.model.request import ServiceRequest
@@ -46,62 +50,47 @@ class WmsHandler:
         self.transformer = TransformToCQL()
         
     async def execute(self, spatial_conn: SpatialConnection, service_request: ServiceRequest) -> ServiceResponse:
-        
-        # Authentication yapısı oluşturulur.
-        conn_info: ConnectionInfo = self.spatial_handler.integration.connection_info  # type: ignore
-        auth = self._create_auth(conn_info)
-        
-        # Backend bilgileri
-        backend: SpatialExternalBackend = spatial_conn.backend  # type: ignore
-        if not backend.endpoint.endswith("?"):
-            backend.endpoint += "?" # add last char ? if not exist
-            
-        api_route = APIRoute(backend.endpoint, endpoint=dummy_endpoint_func, methods=[backend.method])
-        url_path = api_route.url_path_for("dummy_endpoint_func", **(service_request.path_params or {}))
-        client_params = {
-            "timeout": self.spatial_handler.integration.timeout_in_millis,
-            "verify": False,
-            "follow_redirects": False
-        }
-        content: Any = self._create_content(service_request)
-        query_args_str = service_request.query_params.get("query")
-        if query_args_str:
-            query_args = TypeAdapter(
-                QueryArgs).validate_python(json.loads(query_args_str))
-            service_request.query_params['cql_filter'] = self.transformer.transform(query_args)
-            del service_request.query_params['query']
+        start_time = time.time()
 
-        # Format farkları
-        if backend.service_format == WmsServiceFormat.WMS_1_1_1:
-            service_request.query_params['version'] = '1.1.1'    
-            if service_request.query_params.get('srs'):
-                service_request.query_params['crs'] = service_request.query_params['srs']
-                del service_request.query_params['srs']
-        
-        if backend.service_format == WmsServiceFormat.WMS_1_3_0:
-            service_request.query_params['version'] = '1.3.0'    
-        
-        # Not : Wms Özelinde GetMap - GetCapabilities - GetStyles request Tipleri kullanılmaktadır.
-        # Eğer GetStyles olarak gelen bir request varsa versionun bilgisinin 1.1.1 olması gerek
-        request = service_request.query_params.get("request")
-        if request == 'GetStyles':    
-            service_request.query_params['version'] = '1.1.1' 
-      
-        # owslib test amaclı yapıldı  
-        # if request == 'GetCapabilities': 
-        #     url = SpatialExternalBackend(**spatial_conn.backend.model_dump()).endpoint
-        #     vrsn = service_request.query_params['version']
-        #     wms = WebMapService(url, version=vrsn)   
-        #     service_response = ServiceResponse(
-        #         status_code=200,
-        #         response_type="application/json",
-        #         # headers=dict(response.headers),
-        #         body=wms
-        #     ) 
-        #     return service_response
+        try:
+            client = await get_global_client()
+
+            # Authentication yapısı oluşturulur.
+            conn_info: ConnectionInfo = self.spatial_handler.integration.connection_info  # type: ignore
+            auth = self._create_auth(conn_info)
             
-        
-        async with AsyncClient(**client_params) as client:
+            # Backend bilgileri
+            backend: SpatialExternalBackend = spatial_conn.backend  # type: ignore
+            if not backend.endpoint.endswith("?"):
+                backend.endpoint += "?" # add last char ? if not exist
+                
+            api_route = APIRoute(backend.endpoint, endpoint=dummy_endpoint_func, methods=[backend.method])
+            url_path = api_route.url_path_for("dummy_endpoint_func", **(service_request.path_params or {}))
+
+            content: Any = self._create_content(service_request)
+            query_args_str = service_request.query_params.get("query")
+            if query_args_str:
+                query_args = TypeAdapter(
+                    QueryArgs).validate_python(orjson.loads(query_args_str))
+                service_request.query_params['cql_filter'] = self.transformer.transform(query_args)
+                del service_request.query_params['query']
+
+            # Format farkları
+            if backend.service_format == WmsServiceFormat.WMS_1_1_1:
+                service_request.query_params['version'] = '1.1.1'    
+                if service_request.query_params.get('srs'):
+                    service_request.query_params['crs'] = service_request.query_params['srs']
+                    del service_request.query_params['srs']
+            
+            if backend.service_format == WmsServiceFormat.WMS_1_3_0:
+                service_request.query_params['version'] = '1.3.0'    
+            
+            # Not : Wms Özelinde GetMap - GetCapabilities - GetStyles request Tipleri kullanılmaktadır.
+            # Eğer GetStyles olarak gelen bir request varsa versionun bilgisinin 1.1.1 olması gerek
+            request = service_request.query_params.get("request")
+            if request == 'GetStyles':    
+                service_request.query_params['version'] = '1.1.1' 
+
             request = client.build_request(
                 service_request.method,
                 url_path,
@@ -112,17 +101,37 @@ class WmsHandler:
             )
             response = await client.send(request, auth=auth, follow_redirects=True)
 
-        service_response = ServiceResponse(
-            status_code=response.status_code,
-            response_type=response.headers.get("content-type"),
-            # headers=dict(response.headers),
-            cookies=dict(response.cookies),
-            body=response.read()
-        )
-        if service_response.response_type.find("application/json") > -1:
-            service_response.body = json.loads(service_response.body) # type: ignore
-
-        return service_response
+            # Response işleme
+            response_body = response.content
+            response_type = response.headers.get("content-type", "")
+            
+            # JSON parsing
+            if response_type and "application/json" in response_type:
+                try:
+                    response_body = orjson.loads(response_body)
+                except orjson.JSONDecodeError:
+                    try:
+                        response_body = json.loads(response_body.decode('utf-8'))
+                    except:
+                        response_body = response_body
+            
+            service_response = ServiceResponse(
+                status_code=response.status_code,
+                response_type=response_type,
+                cookies=dict(response.cookies),
+                body=response_body
+            )
+            
+            end_time = time.time()
+            processing_time = (end_time - start_time) * 1000
+            print(f"WMS request completed in {processing_time:.2f}ms")
+            
+            return service_response
+        except Exception as e:
+            end_time = time.time()
+            processing_time = (end_time - start_time) * 1000
+            print(f"WMS request failed after {processing_time:.2f}ms: {e}")
+            raise e
         
     def _create_auth(self, connection_info: ConnectionInfo) -> Any:
         if connection_info and connection_info.params:

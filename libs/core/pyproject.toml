@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "lib-core"
-version = "0.1.6"
+version = "0.1.7"
 description = ""
 authors = ["kgulenc <kuntaygulenc@gmail.com>"]
 packages = [
@@ -26,6 +26,7 @@ pyodbc = "^5.2.0"
 urllib3 = "^1.26.20"
 aio_pika = "9.5.5"
 redis = "^4.6.0"
+orjson = "^3.11.3"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -1,5 +1,6 @@
 import asyncio
 import time
+import logging
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from dependency_injector.wiring import inject, Provide
@@ -16,6 +17,10 @@ import json
 import hashlib
 import sqlalchemy.exc
 import elasticapm
+
+# Configure performance logger
+perf_logger = logging.getLogger("performance")
+perf_logger.setLevel(logging.INFO)
 
 router = APIRouter()
 
@@ -43,30 +48,48 @@ async def root(
     ),
 ):
     """Root Method"""
+    # Start overall timing
+    start_time = time.perf_counter()
+    timing_data = {}
+
     try:
-        # Tenant
+        # Tenant lookup timing
+        tenant_start = time.perf_counter()
         tenant_id = await root_service.find_tenant_id(tenant_name)
+        timing_data['tenant_lookup'] = time.perf_counter() - tenant_start
+
         if not tenant_id:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Tenant not found"
             )
-        # Api_path değeriyle eşleşen api kaydı bulunur.
+
+        # API lookup timing
+        api_lookup_start = time.perf_counter()
         api = await root_service.find_api(str(tenant_id), api_path)
+        timing_data['api_lookup'] = time.perf_counter() - api_lookup_start
+
         if not api:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, detail="Api not found"
             )
 
-        # İlgili api detay bilgileri ile beraber sorgulanır.
+        # API details lookup timing
+        api_details_start = time.perf_counter()
         api = await root_service.get_api_with_details(str(tenant_id), api.id)
+        timing_data['api_details_lookup'] = time.perf_counter() - api_details_start
 
-        # IntegrationHandler
+        # Handler finding timing
+        handler_start = time.perf_counter()
         handler = root_service.find_handler(api, route_path, request.method)
+        timing_data['handler_lookup'] = time.perf_counter() - handler_start
+
         if not handler:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Route not found"
             )
 
+        # Rate limiting timing
+        rate_limit_start = time.perf_counter()
         request_count = 0
         if handler.route.rate_limit is not None:
             client_ip = request.client.host  # type: ignore
@@ -76,8 +99,10 @@ async def root(
             request_count = int(request_count or 0)
             if request_count and int(request_count) >= handler.route.rate_limit:
                 raise HTTPException(status_code=429, detail="Rate limit exceeded")
+        timing_data['rate_limiting'] = time.perf_counter() - rate_limit_start
 
-        # Scope ve tenant kontrolü yapılır
+        # Authentication and authorization timing
+        auth_start = time.perf_counter()
         if handler.route.scope:
             if not request.user.is_authenticated:
                 raise HTTPException(
@@ -95,29 +120,41 @@ async def root(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Tenant_ids are different",
                 )
+        timing_data['authentication'] = time.perf_counter() - auth_start
 
+        # Context preparation timing
+        context_start = time.perf_counter()
         tenant_context = await root_service.find_context_var(str(tenant_id))
         context = {
             **tenant_context,
             **(api.context or {}),
             **(handler.integration.context or {}),
         }
-        # Service Request oluşturulur
+        timing_data['context_preparation'] = time.perf_counter() - context_start
+
+        # Service request creation timing
+        request_creation_start = time.perf_counter()
         service_request = await root_service.create_service_request(
             request, handler, {"path": route_path, "context": context}
         )
+        timing_data['service_request_creation'] = time.perf_counter() - request_creation_start
 
-        # Request parametre eşleşmesine göre düzenlenir.
+        # Request modification timing
+        request_mod_start = time.perf_counter()
         modified_request = root_service.modify_service_request(service_request, handler)
+        timing_data['request_modification'] = time.perf_counter() - request_mod_start
 
+        # Request logging preparation timing
+        logging_prep_start = time.perf_counter()
         if handler.route.full_logging == True:
             try:
                 request_body_str = json.dumps(service_request.body, ensure_ascii=False, cls=JsonEncoder)
             except Exception:
                 request_body_str = "parse_error"
+        timing_data['logging_preparation'] = time.perf_counter() - logging_prep_start
 
-        # Route da tanımlanmış olan query parametrelerinin kontrolü yapılır.
-        # Eğer query de tanımlı olan herhangi bir parametrede (path, query, body, context) geçmiyorsa hata verir
+        # Query parameter validation timing
+        query_validation_start = time.perf_counter()
         if not root_service.check_query_params(
             modified_request, handler.route.query or ""
         ):
@@ -125,11 +162,17 @@ async def root(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=str("Required query params not found"),
             )
+        timing_data['query_validation'] = time.perf_counter() - query_validation_start
 
-        # retry_logic fonksiyonu ile retry işlemi yapılır. config'den alınan değerlerle retry mantığı oluşturulabilir.
+        # Handler execution timing (most critical part)
+        execution_start = time.perf_counter()
         service_response: ServiceResponse = await retry_logic(lambda: handler.execute(modified_request), handler.route.retry_count if handler.route.retry_count else 1, handler.route.retry_millisecond, lambda: fallback_response())  # type: ignore
         # service_response = await handler.execute(modified_request)
+        timing_data['handler_execution'] = time.perf_counter() - execution_start
+
         service_response.context = service_request.context
+        # Response logging preparation timing
+        response_logging_start = time.perf_counter()
         if handler.route.full_logging == True:
             try:
                 response_body_str = json.dumps(
@@ -137,12 +180,17 @@ async def root(
                 )
             except Exception:
                 response_body_str = "parse_error"
+        timing_data['response_logging_prep'] = time.perf_counter() - response_logging_start
 
-        # Dönüş değeri parametre eşleşmesine göre düzenlenir.
+        # Response modification timing
+        response_mod_start = time.perf_counter()
         modified_response = root_service.modify_service_response(
             service_response, handler
         )
+        timing_data['response_modification'] = time.perf_counter() - response_mod_start
 
+        # Header and rate limit processing timing
+        header_processing_start = time.perf_counter()
         modified_response.headers["X-Cache-Second"] = str(handler.route.cache_timeout)
 
         if (
@@ -152,9 +200,10 @@ async def root(
             modified_response.headers["X-Rate-Limit"] = str(int(request_count) + 1)
             await redis.incr(key)
             await redis.expire(key, handler.route.rate_second)
+        timing_data['header_processing'] = time.perf_counter() - header_processing_start
 
-        # Handler dan gelen değer Web Response nesnesine dönüştürülür.
-
+        # APM and logging timing
+        apm_logging_start = time.perf_counter()
         if handler.route.full_logging == True:
             elasticapm.set_custom_context(  # type: ignore
                 {
@@ -162,12 +211,32 @@ async def root(
                     "resp_body": safe_truncate(response_body_str),
                 }
             )
-            
+
         user = getattr(request, "user", None)
         if user and getattr(user, "sub", None):
             elasticapm.set_user_context(user_id=user.sub)  # type: ignore
+        timing_data['apm_logging'] = time.perf_counter() - apm_logging_start
 
+        # Response transformation timing
+        transform_start = time.perf_counter()
         ret_res = root_service.transform_to_response(modified_response)
+        timing_data['response_transformation'] = time.perf_counter() - transform_start
+
+        # Calculate total time and log performance data
+        total_time = time.perf_counter() - start_time
+        timing_data['total_time'] = total_time
+
+        # Log detailed performance metrics
+        request_info = f"{request.method} {tenant_name}/{api_path}/{route_path}"
+        log_detailed_performance(timing_data, request_info)
+
+        # Add timing data to response headers for debugging
+        ret_res.headers["X-Timing-Total"] = format_timing_ms(total_time)
+        ret_res.headers["X-Timing-Execute"] = format_timing_ms(timing_data['handler_execution'])
+        ret_res.headers["X-Timing-Breakdown"] = json.dumps({
+            k: format_timing_ms(v) for k, v in timing_data.items()
+        })
+
         return ret_res
 
     except HTTPException as ex:
@@ -191,10 +260,24 @@ async def fallback_response():
 async def retry_logic(func, max_retries=1, wait_time_ms=1000, fallback_func=None):
     attempts = 0
     last_exception = None
+    retry_start = time.perf_counter()
 
     while max_retries is None or attempts < max_retries:
         try:
-            return await func()
+            attempt_start = time.perf_counter()
+            result = await func()
+            attempt_time = time.perf_counter() - attempt_start
+            total_retry_time = time.perf_counter() - retry_start
+
+            # Log retry performance if there were multiple attempts
+            if attempts > 0:
+                perf_logger.info(
+                    f"Retry successful after {attempts + 1} attempts. "
+                    f"Last attempt: {attempt_time*1000:.2f}ms, "
+                    f"Total retry time: {total_retry_time*1000:.2f}ms"
+                )
+
+            return result
 
         except HTTPException as http_exc:
             last_exception = http_exc
@@ -232,3 +315,32 @@ def safe_truncate(value: str, max_len: int = 10000) -> str:
         return value[:max_len]
     except Exception:
         return "[TRUNCATE_ERROR]"
+
+
+def format_timing_ms(seconds: float) -> str:
+    """Format timing in milliseconds with 2 decimal places"""
+    return f"{seconds * 1000:.2f}ms"
+
+
+def log_detailed_performance(timing_data: dict, request_info: str):
+    """Log detailed performance breakdown"""
+    total_time = timing_data.get('total_time', 0)
+
+    # Calculate percentages
+    percentages = {}
+    for key, value in timing_data.items():
+        if key != 'total_time' and total_time > 0:
+            percentages[key] = (value / total_time) * 100
+
+    # Create detailed log message
+    details = []
+    for key, value in timing_data.items():
+        if key != 'total_time':
+            percentage = percentages.get(key, 0)
+            details.append(f"{key}: {format_timing_ms(value)} ({percentage:.1f}%)")
+
+    perf_logger.info(
+        f"PERFORMANCE BREAKDOWN for {request_info} | "
+        f"TOTAL: {format_timing_ms(total_time)} | "
+        f"{' | '.join(details)}"
+    )

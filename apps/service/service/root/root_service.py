@@ -13,6 +13,10 @@ from starlette.routing import Match
 from fastapi.routing import APIRoute
 from fastapi.responses import PlainTextResponse, JSONResponse, HTMLResponse
 from mapa.gateway.connection_info.connection_info_service import ConnectionInfoService
+import hashlib
+import redis.asyncio as aioredis
+from fastapi_cache import FastAPICache
+from service.cache.cache_config import get_cache_config_from_env
 from mapa.gateway.context_var.context_var_service import ContextVarService
 from mapa.gateway.gateway_api.gateway_api_model import GatewayApi
 from mapa.gateway.gateway_api.gateway_api_service import GatewayApiService
@@ -86,27 +90,89 @@ class RootService(BaseDbService):
         self._context_var_service = context_var_service
         self._messenger = messenger
 
+        # Cache configuration from environment
+        self._cache_config = get_cache_config_from_env()
+        self._cache_ttl_tenant = self._cache_config.tenant_ttl
+        self._cache_ttl_api = self._cache_config.api_ttl
+        self._cache_ttl_api_details = self._cache_config.api_details_ttl
+
+    def _get_cache_key(self, prefix: str, *args) -> str:
+        """Generate a consistent cache key from prefix and arguments"""
+        key_data = f"{prefix}:{':'.join(str(arg) for arg in args)}"
+        return hashlib.md5(key_data.encode()).hexdigest()
+
+    async def _get_from_cache(self, key: str):
+        """Get data from Redis cache"""
+        try:
+            redis_read: aioredis.Redis = FastAPICache.get_backend().redis
+            cached_data = await redis_read.get(key)
+            if cached_data:
+                return json.loads(cached_data)
+        except Exception:
+            # If cache fails, continue without caching
+            pass
+        return None
+
+    async def _set_cache(self, key: str, data: Any, ttl: int):
+        """Set data in Redis cache with TTL"""
+        try:
+            redis_write: aioredis.Redis = FastAPICache.get_backend().redis
+            await redis_write.set(key, json.dumps(data, default=str), ex=ttl)
+        except Exception:
+            # If cache fails, continue without caching
+            pass
+
     async def find_tenant_id(self, tenant_name: str) -> UUID | None:
-        """Tenant isminden tenant_id değerini döndürür"""
+        """Tenant isminden tenant_id değerini döndürür - with caching"""
+        # Check cache first
+        cache_key = self._get_cache_key("tenant_id", tenant_name)
+        cached_result = await self._get_from_cache(cache_key)
+        if cached_result is not None:
+            return UUID(cached_result) if cached_result else None
+
+        # If not in cache, fetch from database
         qa = QueryArgs(
-            where=[Filter(field="name", op=FilterOp.EQUAL, value=tenant_name)],
+            where=[Filter(field="name", op=FilterOp.ILIKE, value=tenant_name)],
         ).to_serialize()
         response = await self._messenger.tenant_find(qa)
         tenants = response.get("tenants", [])
-        return tenants[0]["id"] if tenants else None
+        tenant_id = tenants[0]["id"] if tenants else None
+
+        # Cache the result
+        await self._set_cache(cache_key, str(tenant_id) if tenant_id else None, self._cache_ttl_tenant)
+
+        return tenant_id
 
     async def find_api(self, tenant_id: str, api_name: str) -> GatewayApi | None:
-        """Tenant id ve api isminden Api bulur"""
+        """Tenant id ve api isminden Api bulur - with caching"""
+        # Check cache first
+        cache_key = self._get_cache_key("api", tenant_id, api_name)
+        cached_result = await self._get_from_cache(cache_key)
+        if cached_result is not None:
+            return GatewayApi.model_validate(cached_result) if cached_result else None
 
-        return await self._gateway_api_service.find_one(
+        # If not in cache, fetch from database
+        api = await self._gateway_api_service.find_one(
             QueryArgs(where=[Filter(field="path", op=FilterOp.EQUAL, value=api_name)]),
             tenant_id,
         )
 
-    async def get_api_with_details(self, tenant_id: str, api_id: UUID) -> GatewayApi:
-        """İlgili Api nin tüm detay bilgilerini getirir"""
+        # Cache the result
+        api_dict = api.model_dump() if api else None
+        await self._set_cache(cache_key, api_dict, self._cache_ttl_api)
 
-        return await self._gateway_api_service.get(
+        return api
+
+    async def get_api_with_details(self, tenant_id: str, api_id: UUID) -> GatewayApi:
+        """İlgili Api nin tüm detay bilgilerini getirir - with caching"""
+        # Check cache first
+        cache_key = self._get_cache_key("api_details", tenant_id, str(api_id))
+        cached_result = await self._get_from_cache(cache_key)
+        if cached_result is not None:
+            return GatewayApi.model_validate(cached_result)
+
+        # If not in cache, fetch from database
+        api = await self._gateway_api_service.get(
             api_id,
             tenant_id,
             [
@@ -159,6 +225,60 @@ class RootService(BaseDbService):
             ],
         )
 
+        # Cache the result
+        api_dict = api.model_dump()
+        await self._set_cache(cache_key, api_dict, self._cache_ttl_api_details)
+
+        return api
+
+    async def invalidate_tenant_cache(self, tenant_name: str):
+        """Invalidate tenant cache for a specific tenant"""
+        try:
+            cache_key = self._get_cache_key("tenant_id", tenant_name)
+            redis_write: aioredis.Redis = FastAPICache.get_backend().redis
+            await redis_write.delete(cache_key)
+        except Exception:
+            pass
+
+    async def invalidate_api_cache(self, tenant_id: str, api_name: str):
+        """Invalidate API cache for a specific API"""
+        try:
+            cache_key = self._get_cache_key("api", tenant_id, api_name)
+            redis_write: aioredis.Redis = FastAPICache.get_backend().redis
+            await redis_write.delete(cache_key)
+        except Exception:
+            pass
+
+    async def invalidate_api_details_cache(self, tenant_id: str, api_id: UUID):
+        """Invalidate API details cache for a specific API"""
+        try:
+            cache_key = self._get_cache_key("api_details", tenant_id, str(api_id))
+            redis_write: aioredis.Redis = FastAPICache.get_backend().redis
+            await redis_write.delete(cache_key)
+        except Exception:
+            pass
+
+    async def invalidate_context_var_cache(self, tenant_id: str):
+        """Invalidate context variables cache for a specific tenant"""
+        try:
+            cache_key = self._get_cache_key("context_var", tenant_id)
+            redis_write: aioredis.Redis = FastAPICache.get_backend().redis
+            await redis_write.delete(cache_key)
+        except Exception:
+            pass
+
+    async def invalidate_all_tenant_caches(self, tenant_id: str):
+        """Invalidate all caches related to a tenant"""
+        try:
+            redis_write: aioredis.Redis = FastAPICache.get_backend().redis
+            # Use pattern matching to find all keys for this tenant
+            pattern = f"*{tenant_id}*"
+            keys = await redis_write.keys(pattern)
+            if keys:
+                await redis_write.delete(*keys)
+        except Exception:
+            pass
+
     def find_handler(
         self, api: GatewayApi, path: str, method: str
     ) -> IntegrationHandler | None:
@@ -178,10 +298,21 @@ class RootService(BaseDbService):
                 )
 
     async def find_context_var(self, tenant_id: str) -> Dict[str, Any]:
-        """İlgili tenant da tanımlanmış olan tüm context değişkenlerini getirir"""
+        """İlgili tenant da tanımlanmış olan tüm context değişkenlerini getirir - with caching"""
+        # Check cache first
+        cache_key = self._get_cache_key("context_var", tenant_id)
+        cached_result = await self._get_from_cache(cache_key)
+        if cached_result is not None:
+            return cached_result
 
+        # If not in cache, fetch from database
         context_var_list = await self._context_var_service.find(QueryArgs(), tenant_id)
-        return {context_var.key: context_var.value for context_var in context_var_list}
+        result = {context_var.key: context_var.value for context_var in context_var_list}
+
+        # Cache the result
+        await self._set_cache(cache_key, result, self._cache_ttl_tenant)
+
+        return result
 
     async def create_service_request(
         self, request: Request, handler: IntegrationHandler, data: Dict[str, Any]

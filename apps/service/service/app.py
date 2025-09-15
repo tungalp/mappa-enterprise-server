@@ -1,3 +1,4 @@
+import asyncio
 import pathlib
 import service
 import os
@@ -7,7 +8,8 @@ from starlette.middleware import Middleware
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.middleware.cors import CORSMiddleware
 from service.config.app_container import AppContainer
-from service.middleware.cache_middleware import cache_middleware
+
+from service.http_client.http_client import close_global_client
 from service.root.router import router as root_router
 from mapa.log.elk_middleware import ElkMiddleware
 from elasticapm.contrib.starlette import make_apm_client, ElasticAPM
@@ -80,6 +82,7 @@ async def lifespan(app: FastAPI):
 
     await write_redis.close()
     await read_redis.close()
+    await close_global_client()
 
 
 def create_application():
@@ -116,7 +119,7 @@ def create_application():
             AuthenticationMiddleware,
             backend=OAuth2IdTokenBackend(jwks_uri=container.config.oidc()["jwks_uri"]),
         ),
-        Middleware(BaseHTTPMiddleware, dispatch=cache_middleware),
+
         # Middleware(ElasticAPM, client=apm),
         # Middleware(
         #     ElkMiddleware,
@@ -136,5 +139,7 @@ def create_application():
     application.apm_client = apm  # type: ignore
     # Routes
     application.include_router(root_router, prefix="", tags=["root"])
+
+
 
     return application

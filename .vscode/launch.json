@@ -21,7 +21,7 @@
             "jinja": false,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-sso-cdBGbSSc-py3.12/bin/python3",
+            "python": "${workspaceFolder}/apps/sso/.venv/bin/python",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -43,7 +43,7 @@
             "jinja": false,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-manage-TJPr9HMo-py3.12/bin/python3",
+            "python": "${workspaceFolder}/apps/manage/.venv/bin/python",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -65,7 +65,34 @@
             "jinja": false,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-service-wNuy68hN-py3.12/bin/python3",
+            "python": "${workspaceFolder}/apps/service/.venv/bin/python",
+            "env": {
+                "PYTHONPATH": "/workspace"
+            }
+        },
+        {
+            "name": "Service (Multi-Worker)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "service.main:app",
+                "--port",
+                "33102",
+                "--host",
+                "0.0.0.0",
+                "--workers", "4",
+                "--loop", "uvloop",
+                "--http", "httptools",
+                "--timeout-keep-alive", "5",
+                "--limit-concurrency", "100",
+                "--log-level", "warning"
+            ],
+            "cwd": "${workspaceFolder}/apps/service",
+            "jinja": false,
+            "justMyCode": false,
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/apps/service/.venv/bin/python",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -87,7 +114,7 @@
             "jinja": false,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-application-YIXoinGF-py3.12/bin/python3",
+            "python": "${workspaceFolder}/apps/application/.venv/bin/python",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -109,7 +136,7 @@
             "jinja": false,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-gateway-NrR3bvlK-py3.12/bin/python3",
+            "python": "${workspaceFolder}/apps/gateway/.venv/bin/python",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -152,7 +179,7 @@
             "jinja": false,
             "justMyCode": false,
             "console": "integratedTerminal",
-            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-spatial-O8qH7qzs-py3.12/bin/python3",
+            "python": "${workspaceFolder}/apps/spatial/.venv/bin/python",
             "env": {
                 "PYTHONPATH": "/workspace"
             }

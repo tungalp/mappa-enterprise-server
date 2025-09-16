@@ -21,7 +21,7 @@
             "jinja": false,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/apps/sso/.venv/bin/python",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-sso-cdBGbSSc-py3.12/bin/python3",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -43,7 +43,7 @@
             "jinja": false,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/apps/manage/.venv/bin/python",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-manage-TJPr9HMo-py3.12/bin/python3",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -65,7 +65,7 @@
             "jinja": false,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/apps/service/.venv/bin/python",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-service-wNuy68hN-py3.12/bin/python3",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -92,7 +92,7 @@
             "jinja": false,
             "justMyCode": false,
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/apps/service/.venv/bin/python",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-service-wNuy68hN-py3.12/bin/python3",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -114,7 +114,7 @@
             "jinja": false,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/apps/application/.venv/bin/python",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-application-YIXoinGF-py3.12/bin/python3",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -136,7 +136,7 @@
             "jinja": false,
             "justMyCode": true,
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/apps/gateway/.venv/bin/python",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-gateway-NrR3bvlK-py3.12/bin/python3",
             "env": {
                 "PYTHONPATH": "/workspace"
             }
@@ -179,7 +179,7 @@
             "jinja": false,
             "justMyCode": false,
             "console": "integratedTerminal",
-            "python": "${workspaceFolder}/apps/spatial/.venv/bin/python",
+            "python": "/home/vscode/.cache/pypoetry/virtualenvs/app-spatial-O8qH7qzs-py3.12/bin/python3",
             "env": {
                 "PYTHONPATH": "/workspace"
             }

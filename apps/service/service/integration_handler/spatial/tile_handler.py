@@ -25,7 +25,8 @@ class TileHandler:
     format_dict = {
         "png": "image/png",
         "jpeg": "image/jpeg",
-        "mvt": "application/vnd.mapbox-vector-tile"
+        "mvt": "application/vnd.mapbox-vector-tile",
+        "terrain": "application/octet-stream"
     }
 
     def __init__(self, spatial_handler: IntegrationHandler) -> None:
@@ -195,23 +196,23 @@ class TileHandler:
         return url_path
 
     def _create_tms_url_path(self, backend: SpatialExternalBackend, service_request: ServiceRequest) -> str:
-        if backend.endpoint.endswith("?"):
+        if backend.endpoint.endswith("?") or backend.endpoint.endswith("/"):
             backend.endpoint = backend.endpoint[:-1]  # remove last char ? if exist
-        api_route = APIRoute(backend.endpoint, endpoint=dummy_endpoint_func, methods=[backend.method])
-        cp_params = service_request.path_params.copy()
         if len(service_request.path_params) != 0:
             # TMS servisi için eksenin yönü değiştirilir.
-            y = cp_params["y"]
-            z = cp_params["z"]
-            cp_params["y"] = (2**z) - y - 1
-            url_path = api_route.url_path_for("dummy_endpoint_func", **(cp_params))
-        else:
-            if backend.endpoint.endswith("/"):
-                url_path = f"{backend.endpoint}{service_request.query_string}"
-            else:
-                return f"{backend.endpoint}/{service_request.query_string.split("=")[1]}"
+            x = service_request.path_params["x"]
+            y = service_request.path_params["y"]
+            z = service_request.path_params["z"]
+            format = service_request.path_params["format"]
+            query = f"?v={service_request.query_params['v']}" if 'v' in service_request.query_params else ""
+            url = f"/{z}/{x}/{y}.{format}"
+            path = service_request.path[:-len(url)]
             
-
+            url_path = f"{backend.endpoint}/{path}{url}{query }"
+            
+        else:
+            if service_request.path.endswith("layer.json"):
+                url_path = f"{backend.endpoint}/{service_request.path}"
         return url_path
             
     def _create_auth(self, connection_info: ConnectionInfo) -> Any:

@@ -425,6 +425,7 @@ class RootService(BaseDbService):
             "image/vnd.jpeg-png",
             "image/vnd.jpeg-png8",
             "image/png; mode=8bit",
+            "application/octet-stream"
         ]
 
         params = {"content": service_response.body, "headers": service_response.headers, "status_code": service_response.status_code}

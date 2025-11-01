@@ -1,11 +1,11 @@
-domain: "${ESP_HOST}"
+domain: "${MANAGE_HOST}"
 db:
   url: "postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}"
 oidc:
   jwks_uri: "http://sso-api/api/sso/oidc/jwks"
   jwt_secret: "${JWT_SECRET}"
-  api_host: "${SCHEME}://${ESP_HOST}"
-  app_host: "${SCHEME}://${ESP_HOST}"
+  api_host: "${SCHEME}://${MANAGE_HOST}"
+  app_host: "${SCHEME}://${MANAGE_HOST}"
 elk:
   host: "logstash"
   port: 5000

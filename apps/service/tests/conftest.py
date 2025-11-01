@@ -36,7 +36,7 @@ class ServiceAppFixture(BaseAppFixture):
         import os
         os.environ["MAPA_ENV"] = "DEVELOPMENT"
         # Additional ESP vars
-        os.environ["ESP_HOST"] = "localhost:33001"
+        os.environ["MANAGE_HOST"] = "localhost:33001"
         os.environ["JWT_SECRET"] = "test_jwt_secret"
         os.environ["SCHEME"] = "http"
         # RabbitMQ vars (even though dev config has defaults, strict mode requires them)

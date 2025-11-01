@@ -5,7 +5,6 @@ description = ""
 authors = ["kgulenc <kuntaygulenc@gmail.com>"]
 packages = [
     { include = "gateway" },
-    { include = "mapa" },
     { include = "tests" } 
 ]
 

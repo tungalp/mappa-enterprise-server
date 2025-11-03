@@ -82,8 +82,8 @@ class FeatureHandler:
                 service_request.query_params["filter"] = service_request.query_params["filter"].decode('utf-8') 
             
             if "cql_filter" in service_request.query_params and service_request.query_params["cql_filter"] == '':
-                del service_request.query_params["cql_filter"]
-                
+                del service_request.query_params["cql_filter"]       
+                   
             if "filter" in service_request.query_params and service_request.query_params["filter"] == '':
                 del service_request.query_params["filter"] 
                 
@@ -98,14 +98,16 @@ class FeatureHandler:
         # WFS parametreleri tamamlanır.
         if service_request.query_params.get("request") is None:
             service_request.query_params["service"] = "WFS"
-            service_request.query_params["version"] = "2.0.0"
+            service_request.query_params["version"] = "1.0.0"
             service_request.query_params["request"] = "GetFeature"
             service_request.query_params["outputFormat"] = "application/json"
             service_request.query_params["count"] = query_args.limit
             service_request.query_params["startIndex"] = query_args.offset
-            service_request.query_params["typeNames"] = service_request.query_params["typeName"]
             
-            del service_request.query_params["typeName"]
+            # service_request.query_params["typeNames"] = service_request.query_params["typeName"]
+            # del service_request.query_params["typeName"]
+            del service_request.query_params["query"]
+            del service_request.query_params["targetProj"]
             
             if server_type == SpatialServerType.ArcGIS:
                 service_request.query_params["outputFormat"] = "GEOJSON"

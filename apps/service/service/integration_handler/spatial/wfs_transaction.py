@@ -149,6 +149,11 @@ class WfsTransaction:
         properties = feature.get("properties")
         if properties:
             for field, value in properties.items():
+                
+                # Skip if value is None, undefined, or empty string
+                if value is None or value == "":
+                    continue
+        
                 field_el = etree.SubElement(feat_el, f"{{{ns}}}{field}", {}, {})
                 field_el.text = str(value)
 

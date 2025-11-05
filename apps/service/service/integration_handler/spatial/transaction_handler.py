@@ -46,46 +46,49 @@ class TransactionHandler:
         conn_info: ConnectionInfo = self.spatial_handler.integration.connection_info  # type: ignore
         auth = self._create_auth(conn_info)
 
-        # targetProj Transform edilecek SRID bilgisidir. Clientdan gelmektedir. (03.07.2024)
-        geo_field_name = service_request.query_params["geoFieldName"]
-        target_proj = None
-        if "targetProj" in service_request.query_params and service_request.query_params["targetProj"] is not None:
-            target_proj = service_request.query_params["targetProj"]
-            del service_request.query_params["targetProj"]     
-        
-        # targetNamespace bilgisi özellikle Arcgis katmanları için ihtiyaç duyulmuştur. xml içerisinde ki ns bilgisidir. (03.07.2024)
-        target_namespace = None
-        server_type = None
-        if "wmsServerType" in service_request.query_params and service_request.query_params["wmsServerType"] == SpatialServerType.ArcGIS:
-            server_type = SpatialServerType.ArcGIS
-            del service_request.query_params["wmsServerType"] 
-            
-            if "targetNamespace" in service_request.query_params and service_request.query_params["targetNamespace"] is not None:
-                target_namespace = service_request.query_params["targetNamespace"]
-                del service_request.query_params["targetNamespace"]     
-  
-        backend: SpatialExternalBackend = spatial_conn.backend # type: ignore
-        transaction = WfsTransaction(ns_url=target_namespace, geometry_name=geo_field_name, server_type=server_type, target_proj=target_proj)
-        type_name = service_request.query_params["typeName"]
+        # targetProj Transform edilecek SRID bilgisidir. Clientdan gelmektedir. (03.07.2024) Bekir 30.09.2025
         content = ""
-        query_args = None
-        query_args_str = service_request.query_params.get("query")
-        if query_args_str:
-            query_args = TypeAdapter(
-                QueryArgs).validate_python(json.loads(query_args_str))
+        backend: SpatialExternalBackend = spatial_conn.backend # type: ignore
+        if service_request.query_params:
+            geo_field_name = service_request.query_params["geoFieldName"]
+            target_proj = None
+            if "targetProj" in service_request.query_params and service_request.query_params["targetProj"] is not None:
+                target_proj = service_request.query_params["targetProj"]
+                del service_request.query_params["targetProj"]     
             
-        
-        match service_request.method:
-            case MethodTypes.POST:
-                features = service_request.body
-                content = transaction.insert(type_name, features)
-            case MethodTypes.PUT:
-                feature = service_request.body
-                content = transaction.update(type_name, feature, query_args)
-            case MethodTypes.DELETE:
-                feature = service_request.body
-                content = transaction.delete(type_name, query_args)
+            # targetNamespace bilgisi özellikle Arcgis katmanları için ihtiyaç duyulmuştur. xml içerisinde ki ns bilgisidir. (03.07.2024)
+            target_namespace = None
+            server_type = None
+            if "wmsServerType" in service_request.query_params and service_request.query_params["wmsServerType"] == SpatialServerType.ArcGIS:
+                server_type = SpatialServerType.ArcGIS
+                del service_request.query_params["wmsServerType"] 
+                
+                if "targetNamespace" in service_request.query_params and service_request.query_params["targetNamespace"] is not None:
+                    target_namespace = service_request.query_params["targetNamespace"]
+                    del service_request.query_params["targetNamespace"]     
     
+            transaction = WfsTransaction(ns_url=target_namespace, geometry_name=geo_field_name, server_type=server_type, target_proj=target_proj)
+            type_name = service_request.query_params["typeName"]
+            query_args = None
+            query_args_str = service_request.query_params.get("query")
+            if query_args_str:
+                query_args = TypeAdapter(
+                    QueryArgs).validate_python(json.loads(query_args_str))
+                
+            
+            match service_request.method:
+                case MethodTypes.POST:
+                    features = service_request.body
+                    content = transaction.insert(type_name, features)
+                case MethodTypes.PUT:
+                    feature = service_request.body
+                    content = transaction.update(type_name, feature, query_args)
+                case MethodTypes.DELETE:
+                    feature = service_request.body
+                    content = transaction.delete(type_name, query_args)
+        else:
+            content = service_request.body
+            
         client_params = {
             "timeout": self.spatial_handler.integration.timeout_in_millis,
             "verify": False,

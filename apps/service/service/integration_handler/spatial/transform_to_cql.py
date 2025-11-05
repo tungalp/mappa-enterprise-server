@@ -133,7 +133,7 @@ class TransformToCQL:
             else:
                 group_str = self._transform_filter_group(filter_expr, target_proj)  # type: ignore
                 filters.append(group_str)
-        return str(f" {filter_group.type} ").join(filters)
+        return str(f" {filter_group.type.value} ").join(filters)
 
     # Farklı Proj sisteminde geometrik sorguların transform yapılabilmesi için eklenmiştir. (18.04.2024)
     def _projection(self, shape, proj) -> Any:

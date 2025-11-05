@@ -9,6 +9,9 @@ import uuid
 from aio_pika import Message
 import asyncio
 import socket
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class MessageBus:
@@ -20,6 +23,8 @@ class MessageBus:
         self._channel = None
         self.x_queue_type = "quorum"
         self._reply_queue_name = f"reply.{socket.gethostname()}.{uuid.uuid4()}"
+        self._listener_task = None
+        self._listener_lock = asyncio.Lock()
 
     async def publish(self, routing_key: str, payload: dict) -> dict | None:
         return await self.publisher.publish(routing_key, payload)
@@ -31,7 +36,14 @@ class MessageBus:
         conn = await self.publisher.connection.get_connection()
         self._channel = await conn.channel()
         self._reply_queue = None  # bağlantı koptuysa reply queue da sıfırlanmalı
-        self._listening = False
+        # Cancel old listener task if it exists
+        if self._listener_task and not self._listener_task.done():
+            self._listener_task.cancel()
+            try:
+                await self._listener_task
+            except asyncio.CancelledError:
+                pass
+            self._listener_task = None
         return self._channel
 
     async def _get_reply_queue(self):
@@ -43,70 +55,91 @@ class MessageBus:
             self._reply_queue_name,
             durable=False,
             exclusive=True,
-            auto_delete=True, 
+            auto_delete=True,
         )
-        if not self._listening:
-            asyncio.create_task(self._listen_replies())
-            self._listening = True
+        # Start listener if not already running
+        async with self._listener_lock:
+            if not self._listener_task or self._listener_task.done():
+                self._listener_task = asyncio.create_task(self._listen_replies())
+                logger.info(f"[MessageBus] Started reply listener for queue: {self._reply_queue_name}")
         return self._reply_queue
 
     async def _listen_replies(self):
         try:
+            logger.info(f"[MessageBus] Reply listener started for queue: {self._reply_queue_name}")
             async for message in self._reply_queue:
                 correlation_id = message.correlation_id
                 future = self._futures.pop(correlation_id, None)
-                if future:
+                if future and not future.done():
                     future.set_result(message)
+                    logger.debug(f"[MessageBus] Resolved future for correlation_id={correlation_id}")
                 await message.ack()
+        except asyncio.CancelledError:
+            logger.info(f"[MessageBus] Reply listener cancelled for queue: {self._reply_queue_name}")
+            raise
         except Exception as ex:
-            print(f"[MessageBus] reply listener error: {ex}")
-            self._listening = False  # tekrar başlatılabilir olması için
+            logger.error(f"[MessageBus] Reply listener error: {ex}", exc_info=True)
+            # Resolve any pending futures with error
+            for correlation_id, future in list(self._futures.items()):
+                if not future.done():
+                    future.set_exception(ex)
+                    self._futures.pop(correlation_id, None)
 
-    async def publish_with_response(self, routing_key: str, payload: dict):
+    async def publish_with_response(self, routing_key: str, payload: dict, timeout: int):
         correlation_id = str(uuid.uuid4())
         message_id = str(uuid.uuid4())
         event_id = str(uuid.uuid4())
-        channel = await self._ensure_channel()
+        await self._ensure_channel()
         reply_queue = await self._get_reply_queue()
 
         payload["message_id"] = message_id
         payload["event_id"] = event_id
-        
+
         serialized_payload = json.dumps(payload, default=str)
 
         message = Message(
             body=serialized_payload.encode(),
             reply_to=reply_queue.name,
             correlation_id=correlation_id
-            
+
         )
 
         future = asyncio.get_event_loop().create_future()
         self._futures[correlation_id] = future
 
-        await self.publisher.publish(routing_key, message)
-        print(f"[MessageBus] Published message with correlation_id={correlation_id}")
-
         try:
-            response_message = await asyncio.wait_for(future, timeout=10)
-            print(f"[MessageBus] Received response for correlation_id={correlation_id}")
+            await self.publisher.publish(routing_key, message)
+            logger.info(f"[MessageBus] Published message with correlation_id={correlation_id}, routing_key={routing_key}")
+            timeout = int(os.getenv("RABBIT_RPC_TIMEOUT", "60"))
+            response_message = await asyncio.wait_for(future, timeout=timeout)
+            logger.info(f"[MessageBus] Received response for correlation_id={correlation_id}")
             return json.loads(response_message.body.decode())
         except asyncio.TimeoutError:
             self._futures.pop(correlation_id, None)
+            logger.error(f"[MessageBus] Timeout waiting for response: correlation_id={correlation_id}, routing_key={routing_key}, timeout={timeout}s, pending_futures={len(self._futures)}")
             raise TimeoutError(f"Mesaja ilişkin yanıt '{correlation_id}' süresi içinde alınamadı.")
+        except Exception as ex:
+            self._futures.pop(correlation_id, None)
+            logger.error(f"[MessageBus] Error in publish_with_response: correlation_id={correlation_id}, routing_key={routing_key}, error={ex}", exc_info=True)
+            raise
 
     async def publish_without_response(self, routing_key: str, payload: dict):
-        channel = await self._ensure_channel()
+        await self._ensure_channel()
         message_id = str(uuid.uuid4())
         event_id = str(uuid.uuid4())
-        
+
         payload["message_id"] = message_id
         payload["event_id"] = event_id
-        
+
         serialized_payload = json.dumps(payload, default=str)
 
         message = Message(
             body=serialized_payload.encode(),
         )
 
-        await self.publisher.publish(routing_key, message)
+        try:
+            await self.publisher.publish(routing_key, message)
+            logger.info(f"[MessageBus] Published message without response: routing_key={routing_key}, message_id={message_id}")
+        except Exception as ex:
+            logger.error(f"[MessageBus] Error publishing message: routing_key={routing_key}, message_id={message_id}, error={ex}", exc_info=True)
+            raise

@@ -85,7 +85,7 @@ class MessageBus:
                     future.set_exception(ex)
                     self._futures.pop(correlation_id, None)
 
-    async def publish_with_response(self, routing_key: str, payload: dict, timeout: int):
+    async def publish_with_response(self, routing_key: str, payload: dict, timeout: int = 0):
         correlation_id = str(uuid.uuid4())
         message_id = str(uuid.uuid4())
         event_id = str(uuid.uuid4())
@@ -110,7 +110,8 @@ class MessageBus:
         try:
             await self.publisher.publish(routing_key, message)
             logger.info(f"[MessageBus] Published message with correlation_id={correlation_id}, routing_key={routing_key}")
-            timeout = int(os.getenv("RABBIT_RPC_TIMEOUT", "60"))
+            if timeout == 0:
+                timeout = int(os.getenv("RABBIT_RPC_TIMEOUT", "60"))
             response_message = await asyncio.wait_for(future, timeout=timeout)
             logger.info(f"[MessageBus] Received response for correlation_id={correlation_id}")
             return json.loads(response_message.body.decode())

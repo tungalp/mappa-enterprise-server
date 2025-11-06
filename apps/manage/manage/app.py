@@ -56,6 +56,7 @@ app_props = {
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     redis_conf = app.container.config()["redis"]
+    runner = None
 
     try:
         write_redis = await aioredis.from_url(
@@ -80,17 +81,37 @@ async def lifespan(app: FastAPI):
 
         print("Redis bağlantıları başarılı (read & write ayrıldı)")
 
-        runner = ConsumerRunner(
-            get_all_consumers(
-                app.container, app.state.redis_write, app.state.redis_read
+        # Only start consumers if CONSUMERS_ENABLED is set (to support multi-worker deployments)
+        # In production with multiple workers, only one worker should run consumers
+        # Set environment variable CONSUMERS_ENABLED=true in one worker or use single-worker deployment
+        enable_consumers = os.getenv("CONSUMERS_ENABLED", "true").lower() == "true"
+
+        if enable_consumers:
+            runner = ConsumerRunner(
+                get_all_consumers(
+                    app.container, app.state.redis_write, app.state.redis_read
+                )
             )
-        )
-        await runner.start()
+            await runner.start()
+            print("[App] Message bus consumers started")
+        else:
+            print("[App] Message bus consumers disabled (CONSUMERS_ENABLED=false)")
+
+        # Mark consumers as ready for readiness probes (regardless of success/failure)
+        app.state.consumer_runner_ready = True
     except Exception as e:
         print(f"Redis bağlantı hatası: {e}")
+        # Mark as ready even on error so /ready endpoint doesn't hang
+        app.state.consumer_runner_ready = True
+        raise
 
     yield
 
+    # Shutdown: Stop consumer runner
+    if runner:
+        await runner.stop()
+
+    # Close Redis connections
     if write_redis:
         await write_redis.close()
 

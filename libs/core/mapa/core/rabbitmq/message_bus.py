@@ -22,7 +22,9 @@ class MessageBus:
         self._futures = {}
         self._channel = None
         self.x_queue_type = "quorum"
-        self._reply_queue_name = f"reply.{socket.gethostname()}.{uuid.uuid4()}"
+        # Use SERVICE_NAME environment variable for Docker container identification (falls back to hostname if not set)
+        service_identifier = os.getenv("SERVICE_NAME") or socket.gethostname()
+        self._reply_queue_name = f"reply.{service_identifier}.{uuid.uuid4()}"
         self._listener_task = None
         self._listener_lock = asyncio.Lock()
 

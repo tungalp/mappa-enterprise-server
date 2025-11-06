@@ -74,18 +74,22 @@ async def lifespan(app: FastAPI):
         enable_consumers = os.getenv("CONSUMERS_ENABLED", "true").lower() == "true"
 
         if enable_consumers:
-            runner = ConsumerRunner(
-                get_all_consumers(
-                    app.container, app.state.redis_write, app.state.redis_read
+            try:
+                runner = ConsumerRunner(
+                    get_all_consumers(
+                        app.container, app.state.redis_write, app.state.redis_read
+                    )
                 )
-            )
-            await runner.start()
-            print("[App] Message bus consumers started")
+                await runner.start()
+                print("[App] Message bus consumers started successfully")
+                app.state.consumer_runner_ready = True
+            except Exception as e:
+                print(f"[App] CRITICAL: Consumer startup failed: {type(e).__name__}: {e}")
+                app.state.consumer_runner_ready = False
+                raise
         else:
             print("[App] Message bus consumers disabled (CONSUMERS_ENABLED=false)")
-
-        # Mark consumers as ready for readiness probes (regardless of success/failure)
-        app.state.consumer_runner_ready = True
+            app.state.consumer_runner_ready = True
 
         # Outbox worker
         async def worker():
@@ -99,9 +103,9 @@ async def lifespan(app: FastAPI):
         asyncio.create_task(worker())
 
     except Exception as e:
-        print(f"Redis bağlantı hatası: {e}")
-        # Mark as ready even on error so /ready endpoint doesn't hang
-        app.state.consumer_runner_ready = True
+        print(f"[App] CRITICAL: Lifespan startup error: {type(e).__name__}: {e}")
+        # Don't mark as ready if critical services failed
+        app.state.consumer_runner_ready = False
         raise
 
     yield

@@ -35,4 +35,4 @@ class AuthorizeEndpoint(BaseModel):
     login_hint: Optional[str] = None
     screen_hint: Optional[str] = None
     acr_values: Optional[str] = None
-    language: str | None
+    language: Optional[str] = None

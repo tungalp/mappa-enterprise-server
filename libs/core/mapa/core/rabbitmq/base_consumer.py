@@ -108,16 +108,21 @@ class BaseConsumer(ABC):
         self._consumer_task = asyncio.create_task(message_loop())
 
     async def send_response(self, reply_to: str, response: dict, correlation_id: str):
-        conn = await self.connection.get_connection()
-        channel = await self.get_channel()
+        try:
+            conn = await self.connection.get_connection()
+            channel = await self.get_channel()
 
-        serialized_payload = json.dumps(response, cls=RabbitJsonEncoder)
+            serialized_payload = json.dumps(response, cls=RabbitJsonEncoder)
 
-        message = Message(
-            body=serialized_payload.encode(),
-            correlation_id=correlation_id,
-        )
-        await channel.default_exchange.publish(message, routing_key=reply_to)
+            message = Message(
+                body=serialized_payload.encode(),
+                correlation_id=correlation_id,
+            )
+            await channel.default_exchange.publish(message, routing_key=reply_to)
+            print(f"[BaseConsumer] Response sent: correlation_id={correlation_id}, reply_to={reply_to}")
+        except Exception as ex:
+            print(f"[BaseConsumer] Error sending response: correlation_id={correlation_id}, reply_to={reply_to}, error={ex}")
+            raise
 
     async def is_duplicate(self, message_id: str, event_id: str) -> bool:
         redis_key = f"idempotent:{self.queue_name}:{message_id}:{event_id}"

@@ -270,6 +270,7 @@ class MapService(
                                     external.server_type
                                 )
                                 layer_gateway_params.wms_backend_type = external.type
+                                layer_gateway_params.wms_service_format = external.service_format
                             elif adhoc is not None:
                                 layer_gateway_params.wms_sql = adhoc.sql
                                 layer_gateway_params.wms_geometry_column = (
@@ -289,6 +290,7 @@ class MapService(
                                     external.server_type
                                 )
                                 layer_gateway_params.tile_backend_type = external.type
+                                layer_gateway_params.tile_service_format = external.service_format
                             elif adhoc is not None:
                                 layer_gateway_params.tile_sql = adhoc.sql
                                 layer_gateway_params.tile_geometry_column = (
@@ -314,6 +316,7 @@ class MapService(
                                 layer_gateway_params.feature_backend_type = (
                                     external.type
                                 )
+                                layer_gateway_params.feature_service_format = (external.service_format)
                             elif adhoc is not None:
                                 layer_gateway_params.feature_sql = adhoc.sql
                                 layer_gateway_params.feature_geometry_column = (
@@ -341,6 +344,7 @@ class MapService(
                                 layer_gateway_params.transaction_backend_type = (
                                     external.type
                                 )
+                                layer_gateway_params.transaction_service_format = (external.service_format)
                             elif adhoc is not None:
                                 layer_gateway_params.transaction_sql = adhoc.sql
                                 layer_gateway_params.transaction_geometry_column = (

@@ -16,6 +16,7 @@ class LayerGatewayParams(BaseModel):
     wms_backend_type: str | None = None
     wms_sql: str | None = None
     wms_geometry_column: str | None = None
+    wms_service_format: str | None = None
     
     tile_path: str | None = None
     tile_endpoint: str | None = None
@@ -24,6 +25,7 @@ class LayerGatewayParams(BaseModel):
     tile_backend_type: str | None = None
     tile_sql: str | None = None
     tile_geometry_column: str | None = None
+    tile_service_format: str | None = None
     
     feature_path: str | None = None
     feature_endpoint: str | None = None
@@ -32,6 +34,7 @@ class LayerGatewayParams(BaseModel):
     feature_backend_type: str | None = None
     feature_sql: str | None = None
     feature_geometry_column: str | None = None
+    feature_service_format: str | None = None
     
     transaction_path: str | None = None
     transaction_endpoint: str | None = None
@@ -40,3 +43,4 @@ class LayerGatewayParams(BaseModel):
     transaction_backend_type: str | None = None
     transaction_sql: str | None = None
     transaction_geometry_column: str | None = None
+    transaction_service_format: str | None = None

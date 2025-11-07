@@ -36,7 +36,7 @@ async def find(
     if file_store.file_format == FileType.geojson:
         resolver = GeoJSONConflictResolver()
         db_geojson = resolver.base64_to_geojson(file_store.file_data)
-        downloaded_features,_ = resolver.reconstruct_to_time(db_geojson)
+        downloaded_features,_ = resolver.reconstruct_to_time(db_geojson, None)
         db_geojson['features'] = downloaded_features
         if 'changes' in db_geojson:
             db_geojson.pop('changes')

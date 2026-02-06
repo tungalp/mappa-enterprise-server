@@ -178,10 +178,17 @@ class MailService(BaseService):
             mail_msg = MailMessage(
                 self._user_name, to, "", subject, register_html, True, link
             )
-            mail = smtplib.SMTP(self._smtp, self._port, timeout=30)
-            mail.ehlo()
-            if self._method is not None:
+            
+            if self._method == "SSL":
+                mail = smtplib.SMTP_SSL(self._smtp, self._port, timeout=30)
+            
+            elif self._method == "STARTTLS":
+                mail = smtplib.SMTP(self._smtp, self._port, timeout=30)
                 mail.starttls()
+            
+            else:
+                mail = smtplib.SMTP(self._smtp, self._port, timeout=30)
+                
             if self._password is not None and str.upper(self._password) != "NONE":
                 mail.login(self._user_name, self._password)
             mail.sendmail(self._user_name, to, mail_msg.get_message().as_string())

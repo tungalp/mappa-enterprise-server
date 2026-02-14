@@ -175,7 +175,7 @@ def generate_database_info_kdi_merkez() -> CreateDatabaseInfo:
 
 def generate_database_info_islem_oracle() -> DatabaseInfo:
     return DatabaseInfo(
-        dialect="oracle+cx_oracle",
+        dialect="oracle+oracledb",
         username="INSTALLER",
         password="INSTALLER12345Abc.",
         host="db",

@@ -44,7 +44,7 @@
         6379    // Redis
     ],
 
-    "postCreateCommand": "poetry config virtualenvs.in-project false",
+    "postCreateCommand": "poetry config virtualenvs.in-project true",
 
     "remoteUser": "vscode"
 

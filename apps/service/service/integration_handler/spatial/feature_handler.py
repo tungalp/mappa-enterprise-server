@@ -17,7 +17,7 @@ from service.integration_handler.spatial.transform_to_cql import TransformToCQL
 from service.integration_handler.spatial.transform_to_ogc import TransformToOGC
 from service.model.request import ServiceRequest
 from service.model.response import ServiceResponse
-from mapa.gateway.integration.integration_model import SpatialServerType
+from mapa.gateway.integration.integration_model import SpatialServerType, FeatureServiceFormat
 
 from lxml import etree
 
@@ -35,12 +35,81 @@ class FeatureHandler:
        
         # Backend bilgileri
         backend_type = spatial_conn.backend.type
-        if backend_type == SpatialBackendType.External:
+        service_format = spatial_conn.backend.service_format
+        if backend_type == SpatialBackendType.External and service_format == FeatureServiceFormat.OGC_API_1_0_1:
+            return await self._execute_external_ogc_api(spatial_conn, service_request)
+        elif backend_type == SpatialBackendType.External:
             return await self._execute_external(spatial_conn, service_request)
         else:
             return await self._execute_ad_hoc(spatial_conn, service_request)
         
+    # Bekir Yüksel 12.02.2026
+    async def _execute_external_ogc_api(self, spatial_conn: SpatialConnection, service_request: ServiceRequest) -> ServiceResponse:
+        
+        # Authentication yapısı oluşturulur.
+        conn_info: ConnectionInfo = self.spatial_handler.integration.connection_info  # type: ignore
+        auth = self._create_auth(conn_info)
+        
+        # Remove last char / if exist
+        backend: SpatialExternalBackend = spatial_conn.backend 
+        if backend.endpoint.endswith("/"):
+            backend.endpoint = backend.endpoint[:-1]  
+        if backend.endpoint.endswith("?"):
+            backend.endpoint = backend.endpoint[:-1]  
 
+        # Resolve url
+        url_path = backend.endpoint 
+        
+        # Add path and query to url
+        if service_request.path:
+            if service_request.path.startswith("/"):
+                service_request.path = service_request.path[1:]  
+            url_path = url_path + "/" + service_request.path 
+
+        if service_request.query_string:
+            if service_request.query_string.startswith("?"):
+                service_request.query_string = service_request.query_string[1:]  
+            url_path = url_path  + "?" + service_request.query_string
+            
+        client_params = {
+            "timeout": self.spatial_handler.integration.timeout_in_millis,
+            "verify": False,
+            "follow_redirects": False
+        }
+        content: Any = self._create_content(service_request)
+ 
+        # Send request if needs with headers
+        async with AsyncClient(**client_params) as client:
+            request = client.build_request(
+                service_request.method,
+                url_path,
+                # headers=service_request.headers,
+                cookies=service_request.cookies,
+                content=content
+            )
+            response = await client.send(request, auth=auth, follow_redirects=True)
+
+        # Read response
+        service_response = ServiceResponse(
+            status_code=response.status_code,
+            response_type=response.headers.get("content-type"),
+            # headers=dict(response.headers),
+            cookies=dict(response.cookies),
+            body=response.read()
+        )
+
+        # Dump json if it is a json
+        if service_response.response_type.find("application/json") > -1:
+            service_response.body = json.loads(service_response.body)
+        elif service_response.response_type.find("application/schema+json") > -1:
+            service_response.response_type = "application/json"
+            service_response.body = json.loads(service_response.body)
+        elif service_response.response_type.find("application/geo+json") > -1:
+            service_response.response_type = "application/json"
+            service_response.body = json.loads(service_response.body)
+            
+        return service_response
+    
     async def _execute_external(self, spatial_conn: SpatialConnection, service_request: ServiceRequest) -> ServiceResponse:
         # Authentication yapısı oluşturulur.
         conn_info: ConnectionInfo = self.spatial_handler.integration.connection_info  # type: ignore

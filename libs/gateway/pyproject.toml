@@ -11,7 +11,6 @@ packages = [
 python = "^3.12"
 lib-core = {path = "../core"}
 oracledb = "2.5.0"
-cx-oracle = "8.3.0"
 zeep = "4.2.1"
 requests_cache = "0.9.8" 
 

@@ -27,7 +27,7 @@ class AdHocQueryIntegrationHandler(IntegrationHandler):
 
     dialect_driver_mapping = {
         "postgresql": "psycopg2",
-        "oracle": "cx_oracle",
+        "oracle": "oracledb",
         "mssql": "pyodbc",
     }
 

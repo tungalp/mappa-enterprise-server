@@ -11,9 +11,9 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.12"
-lib-app = {path = "../../libs/app"}
-lib-core = {path = "../../libs/core"}
-lib-manage = {path = "../../libs/manage"}
+lib-app = {path = "../../libs/app", develop = true}
+lib-core = {path = "../../libs/core", develop = true}
+lib-manage = {path = "../../libs/manage", develop = true}
 
 [tool.poetry.group.dev.dependencies]
 pytest = "7.4.2"

@@ -9,10 +9,10 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.12"
-lib-app = {path = "../../libs/app"}
-lib-core = {path = "../../libs/core"}
-lib-service = {path = "../../libs/service"}
-lib-gateway = {path = "../../libs/gateway"}
+lib-app = {path = "../../libs/app", develop = true}
+lib-core = {path = "../../libs/core", develop = true}
+lib-service = {path = "../../libs/service", develop = true}
+lib-gateway = {path = "../../libs/gateway", develop = true}
 pygml = "0.2.2"
 owslib = "0.29.3"
 pyproj = "3.6.1"

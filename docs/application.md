@@ -96,8 +96,8 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.10"
-lib-app = {path = "../../libs/app"}
-lib-core = {path = "../../libs/core"}
+lib-app = {path = "../../libs/app", develop = true}
+lib-core = {path = "../../libs/core", develop = true}
 bcrypt = "^3.2.0"
 PyJWT = "^2.4.0"
 

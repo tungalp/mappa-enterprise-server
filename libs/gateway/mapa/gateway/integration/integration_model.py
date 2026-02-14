@@ -121,9 +121,11 @@ class WmsServiceFormat(str, Enum):
 class FeatureServiceFormat(str, Enum):
     WFS_2_0_0 = 'wfs_2_0_0'
     WFS_1_1_0 = 'wfs_1_1_0'
+    OGC_API_1_0_1 = 'ogc_api_1_0_1'
     
 class TransactionServiceFormat(str, Enum):
     WFS_T_2_0_0 = 'wfs_t_2_0_0'
+    OGC_API_T_1_0_1 = 'ogc_api_t_1_0_1'
 
 class SpatialExternalBackend(BaseModel):
     """External Backend"""

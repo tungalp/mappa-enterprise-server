@@ -6,7 +6,7 @@
         {
             "label": "sso-poetry-install",
             "type": "shell",
-            "command": "poetry update && exit",
+            "command": "poetry config virtualenvs.in-project true && poetry install && exit",
             "options": {
                 "cwd": "${workspaceFolder}/apps/sso"
             }
@@ -14,7 +14,7 @@
         {
             "label": "manage-poetry-install",
             "type": "shell",
-            "command": "poetry update && exit",
+            "command": "poetry config virtualenvs.in-project true && poetry install && exit",
             "options": {
                 "cwd": "${workspaceFolder}/apps/manage"
             }
@@ -22,7 +22,7 @@
         {
             "label": "gateway-poetry-install",
             "type": "shell",
-            "command": "poetry update && exit",
+            "command": "poetry config virtualenvs.in-project true && poetry install && exit",
             "options": {
                 "cwd": "${workspaceFolder}/apps/gateway"
             }
@@ -30,7 +30,7 @@
         {
             "label": "service-poetry-install",
             "type": "shell",
-            "command": "poetry update && exit",
+            "command": "poetry config virtualenvs.in-project true && poetry install && exit",
             "options": {
                 "cwd": "${workspaceFolder}/apps/service"
             }
@@ -38,7 +38,7 @@
         {
             "label": "application-poetry-install",
             "type": "shell",
-            "command": "poetry update && exit",
+            "command": "poetry config virtualenvs.in-project true && poetry install && exit",
             "options": {
                 "cwd": "${workspaceFolder}/apps/application"
             }
@@ -46,7 +46,7 @@
         {
             "label": "mock_app-poetry-install",
             "type": "shell",
-            "command": "poetry update && exit",
+            "command": "poetry config virtualenvs.in-project true && poetry install && exit",
             "options": {
                 "cwd": "${workspaceFolder}/apps/mock_app"
             }
@@ -54,7 +54,7 @@
         {
             "label": "spatial-poetry-install",
             "type": "shell",
-            "command": "poetry update && exit",
+            "command": "poetry config virtualenvs.in-project true && poetry install && exit",
             "options": {
                 "cwd": "${workspaceFolder}/apps/spatial"
             }

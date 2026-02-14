@@ -10,11 +10,10 @@ packages = [
 
 [tool.poetry.dependencies]
 python = "^3.12"
-lib-app = {path = "../../libs/app"}
-lib-core = {path = "../../libs/core"}
-lib-gateway = {path = "../../libs/gateway"}
+lib-app = {path = "../../libs/app", develop = true}
+lib-core = {path = "../../libs/core", develop = true}
+lib-gateway = {path = "../../libs/gateway", develop = true}
 oracledb = "2.5.0"
-cx-oracle = "8.3.0"
 zeep = "4.2.1"
 requests_cache = "0.9.8" 
 

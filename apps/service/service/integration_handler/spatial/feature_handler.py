@@ -175,8 +175,10 @@ class FeatureHandler:
             
             # service_request.query_params["typeNames"] = service_request.query_params["typeName"]
             # del service_request.query_params["typeName"]
-            del service_request.query_params["query"]
-            del service_request.query_params["targetProj"]
+            if service_request.query_params.get("query"):
+                del service_request.query_params["query"]
+            if service_request.query_params.get("targetProj"):
+                del service_request.query_params["targetProj"]
             
             if server_type == SpatialServerType.ArcGIS:
                 service_request.query_params["outputFormat"] = "GEOJSON"

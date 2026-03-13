@@ -157,3 +157,4 @@ logstash_backup.db
 zeep_cache.sqlite
 *.pgsql
 CLAUDE.md
+.DS_Store

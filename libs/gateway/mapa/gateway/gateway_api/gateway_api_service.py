@@ -113,7 +113,7 @@ class GatewayApiService(
         )
         gateway_apis = await super().paging(query_args, tenant_id)
         for gateway_api in gateway_apis.items:
-            await self.messenger.delete_api(gateway_api.manage_api_id, tenant_id)
+            await self.messenger.delete_api(str(gateway_api.manage_api_id), tenant_id)
         return await super().delete_by_ids(obj_ids, tenant_id)
 
     async def delete_all(
@@ -124,7 +124,7 @@ class GatewayApiService(
         query_args.limit = 0
         gateway_apis = await super().paging(query_args, tenant_id)
         for gateway_api in gateway_apis.items:
-            await self.messenger.delete_api(gateway_api.manage_api_id, tenant_id)
+            await self.messenger.delete_api(str(gateway_api.manage_api_id), tenant_id)
         return await super().delete_all(query_args, tenant_id)
 
     async def delete(self, obj_id: Any, tenant_id: str | None = None) -> bool:
@@ -138,7 +138,7 @@ class GatewayApiService(
         )
         gateway_apis = await super().paging(query_args, tenant_id)
         for gateway_api in gateway_apis.items:
-            await self.messenger.delete_api(gateway_api.manage_api_id, tenant_id)
+            await self.messenger.delete_api(str(gateway_api.manage_api_id), tenant_id)
         return await super().delete(obj_id, tenant_id)
 
     async def update(

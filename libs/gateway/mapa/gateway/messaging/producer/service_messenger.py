@@ -9,6 +9,8 @@ from mapa.gateway.outbox.outbox_service import OutboxService
 from mapa.gateway.outbox.outbox_model import CreateOutbox
 from sqlalchemy import text
 from uuid import uuid4
+import logging
+import traceback
 
 
 class ServiceMessenger:
@@ -101,8 +103,10 @@ class ServiceMessenger:
                 tenant_id=tenant_id,
             )
             await self.outbox_service.create(outbox)
-        except Exception:
-            raise
+        except Exception as e:
+            logging.error(f"Outbox event yazılamadı: {str(e)}")
+            logging.error(traceback.format_exc())
+            raise Exception("Outbox event yazılamadı")
 
     # **ClientCreateConsumer** için
     async def create_client(self, data: dict, tenant_id: str | None = None):

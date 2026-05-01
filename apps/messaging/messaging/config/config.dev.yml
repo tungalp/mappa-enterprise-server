@@ -1,0 +1,43 @@
+db:
+  url: "postgresql+asyncpg://mapa:12345Abc.@postgres/mapa_test"
+oidc:
+  jwks_uri: "http://host.docker.internal:33100/api/sso/oidc/jwks"
+elk:
+  host: "host.docker.internal"
+  port: 5000
+apm:
+  service_name: "mapa-messaging"
+  secret_token: ""
+  server_url: "http://host.docker.internal:8200"
+  environment: "mapa-messaging-service-environment"
+  body: "all"
+  log_level: "info"
+  sanitize_field_names: "password,passwd,pwd,secret,*key,*token*,*session*,*credit*,*card*,*auth*,*principal*,set-cookie,tckno,tcno,vergi,tc,adres,iban,*logo*,*client_id*,*clientid*,*client-id*,*clientId*"
+alembic:
+  url: "postgresql://postgres:postgres@postgres/mapa_test"
+rabbitmq:
+  exchange_name: "mapa-exchange"
+  host: "rabbitmq"
+  port: 5672
+  username: "mapa"
+  password: "mapa"
+  virtual_host: "/"
+mqtt:
+  host: "emqx"
+  port: 1883
+  wss_port: 8084
+  username: "mapa"
+  password: "mapa"
+  virtual_host: "/"
+redis:
+  host: "redis"
+  port: 6379
+  password: "mapa"
+  db: 0
+minio:
+  endpoint: "minio:9000"
+  external_endpoint: "localhost:9000"
+  access_key: "mapa"
+  secret_key: "mapa12345"
+  bucket: "mapa-message-files"
+  secure: false

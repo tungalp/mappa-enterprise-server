@@ -15,7 +15,7 @@ from mapa.core.data.result import ActionResult, PagingResult
 from mapa.manage.constants import ApiScopeType, PromptModes
 from mapa.manage.invitation.invitation_util_service import InvitationUtilService
 from mapa.manage.invitation.mail_service import MailService
-from mapa.manage.user.user_model import CreateUser, User, UpdateAllUser, UpdateUser
+from mapa.manage.user.user_model import CreateUser, User, UserMinimal, UpdateAllUser, UpdateUser
 from manage.config.app_container import AppContainer
 from mapa.manage.user.user_service import UserService
 from mapa.security import authorize
@@ -36,6 +36,28 @@ async def create(
     users = await user_service.create_all(items, tenant_id)
     result = ActionResult(success=True, items=users)
     return result
+
+
+
+@router.get("/search", response_model=PagingResult[UserMinimal])
+@authorize([])
+@inject
+async def search(
+    request: Request,
+    query: QueryArgs = query_param(),
+    user_service: UserService = Depends(
+        Provide[AppContainer.user_package.user_service])
+):
+    """Kullanıcı arama (Messenger vb. bileşenler için kısıtlı bilgi döner)"""
+    tenant_id = request.user.tenant_id
+    
+    # Güvenlik için sadece temel alanları dönüyoruz
+    if not query.select:
+        query.select = ["id", "name", "surname", "email", "picture", "subject_id"]
+        
+    users: PagingResult[UserMinimal] = await user_service.search(
+        query, tenant_id)
+    return users
 
 
 @router.get("/{user_id}", response_model=User)

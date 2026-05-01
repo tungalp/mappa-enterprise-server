@@ -6,6 +6,7 @@
       "${workspaceFolder}/apps/application",
       "${workspaceFolder}/apps/gateway",
       "${workspaceFolder}/apps/spatial",
+      "${workspaceFolder}/apps/messaging",
       "${workspaceFolder}/libs/core",
       "${workspaceFolder}/libs/app",
       "${workspaceFolder}/libs/manage",

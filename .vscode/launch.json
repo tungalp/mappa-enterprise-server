@@ -186,6 +186,28 @@
             }
         },
         {
+            "name": "Messaging",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "messaging.main:app",
+                "--port",
+                "33105",
+                "--host",
+                "0.0.0.0",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/apps/messaging",
+            "jinja": false,
+            "justMyCode": true,
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/apps/messaging/.venv/bin/python3",
+            "env": {
+                "PYTHONPATH": "/workspace"
+            }
+        },
+        {
             "name": "Python: Current File",
             "type": "debugpy",
             "request": "launch",
@@ -206,7 +228,8 @@
                 "Gateway",
                 "Service",
                 "Application",
-                "Spatial"
+                "Spatial",
+                "Messaging"
             ],
             "stopAll": true,
             "preLaunchTask": "update-all-apps"

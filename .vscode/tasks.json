@@ -60,6 +60,14 @@
             }
         },
         {
+            "label": "messaging-poetry-install",
+            "type": "shell",
+            "command": "poetry config virtualenvs.in-project true && poetry install && exit",
+            "options": {
+                "cwd": "${workspaceFolder}/apps/messaging"
+            }
+        },
+        {
             "label": "update-all-apps",
             "dependsOrder": "sequence",
             "dependsOn": [
@@ -68,7 +76,8 @@
                 "gateway-poetry-install",
                 "service-poetry-install",
                 "application-poetry-install",
-                "spatial-poetry-install"
+                "spatial-poetry-install",
+                "messaging-poetry-install"
             ]
         }
     ]

@@ -28,6 +28,16 @@ class BaseRepository(ABC, Generic[EntityType]):
         self._db = async_db
         self._primary_key = inspect(self.entity_type).primary_key[0]
 
+    async def __set_tenant_id(self, session, tenant_id: str | None):
+        """Sets the app.tenant_id in the database session safely."""
+        if tenant_id:
+            # IMPORTANT: Postgres SET command does NOT support bind parameters (:t_id).
+            # We must use set_config function to safely use parameters in a session variable.
+            await session.execute(
+                text("SELECT set_config('app.tenant_id', :t_id, false)"),
+                {"t_id": str(tenant_id)}
+            )
+
     @property
     def primary_key(self):
         """Primary Key alanı"""
@@ -47,8 +57,7 @@ class BaseRepository(ABC, Generic[EntityType]):
 
         ret_val: EntityType
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
             data = await session.execute(stmt)
             ret_val = data.unique().scalars().first()
 
@@ -75,8 +84,7 @@ class BaseRepository(ABC, Generic[EntityType]):
 
         ret_val: List[EntityType] = []
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
             data = await session.execute(stmt)
             ret_val = data.unique().scalars().all()
 
@@ -98,8 +106,7 @@ class BaseRepository(ABC, Generic[EntityType]):
 
         ret_val = 0
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
             # 1-N ilişkili tabloların olması durumda sadece parent tablo kayıt sayısını
             # getirmesi için tekil alan kullanılır.
             stmt = stmt.distinct(self.primary_key)
@@ -118,8 +125,7 @@ class BaseRepository(ABC, Generic[EntityType]):
 
         ret_val: EntityType = None  # type: ignore
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
             data = await session.execute(stmt)
             ret_val = data.unique().scalars().first()
 
@@ -183,9 +189,8 @@ class BaseRepository(ABC, Generic[EntityType]):
                 
         db_obj = self.entity_type(**create_dict)
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
-                db_obj.tenant_id = tenant_id
+            await self.__set_tenant_id(session, tenant_id)
+            db_obj.tenant_id = tenant_id
 
             session.add(db_obj)
             await session.commit()
@@ -209,8 +214,7 @@ class BaseRepository(ABC, Generic[EntityType]):
             db_objs.append(db_obj)
 
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
 
             session.add_all(db_objs)
             await session.commit()
@@ -234,8 +238,7 @@ class BaseRepository(ABC, Generic[EntityType]):
 
         ret_val: int = 0
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
 
             result = await session.execute(stmt)
             await session.commit()
@@ -268,8 +271,7 @@ class BaseRepository(ABC, Generic[EntityType]):
             synchronize_session="fetch")
 
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
 
             result = await session.execute(stmt)
             ret_val = len(obj_ids) == result.rowcount
@@ -298,8 +300,7 @@ class BaseRepository(ABC, Generic[EntityType]):
 
         ret_val: int = 0
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
 
             result = await session.execute(stmt)
             await session.commit()
@@ -314,8 +315,7 @@ class BaseRepository(ABC, Generic[EntityType]):
         stmt = stmt.filter(self._primary_key == obj_id)
         ret_val = 0
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
 
             result = await session.execute(stmt)
             await session.commit()
@@ -330,8 +330,7 @@ class BaseRepository(ABC, Generic[EntityType]):
         stmt = stmt.filter(self._primary_key.in_(obj_ids))
         ret_val = 0
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
 
             result = await session.execute(stmt)
             if len(obj_ids) == result.rowcount:
@@ -356,8 +355,7 @@ class BaseRepository(ABC, Generic[EntityType]):
         stmt = stmt.execution_options(synchronize_session="fetch")
         ret_val: int = 0
         async with self._db.session() as session:
-            if tenant_id:
-                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            await self.__set_tenant_id(session, tenant_id)
 
             result = await session.execute(stmt)
             await session.commit()
@@ -631,6 +629,10 @@ class BaseRepository(ABC, Generic[EntityType]):
                         lower = cast_value[0]
                         upper = cast_value[1]
                         filter_list.append(between(filter_attr, lower, upper))
+                    case FilterOp.CONTAINS:
+                        filter_list.append(filter_attr.contains(cast_value))
+                    case _:
+                        raise ValueError(f"Unknown filter operator: {filtery.op}")
             else:
                 sub_filter_list = []
                 for filterz in filtery.filters:

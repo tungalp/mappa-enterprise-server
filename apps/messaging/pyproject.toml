@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "app-messaging"
+version = "0.1.0"
+description = "MAPPA Communication Layer (Chat & Signals)"
+authors = ["Antigravity <antigravity@google.com>"]
+packages = [
+    { include = "messaging" },
+    { include = "tests" }    
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+lib-app = {path = "../../libs/app", develop = true}
+lib-core = {path = "../../libs/core", develop = true}
+aiomqtt = "^2.0.0"
+minio = "^7.2.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "7.4.2"
+pytest-asyncio = "0.21.1"
+pylint = "2.17.5"
+lib-test = {path = "../../libs/test"}
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

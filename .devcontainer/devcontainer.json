@@ -34,14 +34,19 @@
         33102,  // Service
         33103,  // Application
         33104,  // Gateway
-        33105,  // ETL
+        33105,  // Messaging
         33106,  // BPM
         33107,  // Spatial
         33200,  // MockApp
         5432,   // PostgreSQL
         5672,   // RabbitMQ AMQP
         15672,  // RabbitMQ Management UI
-        6379    // Redis
+        6379,   // Redis
+        1883,   // EMQX MQTT
+        8084,   // EMQX WSS
+        18083,  // EMQX Dashboard
+        9000,   // MinIO API
+        9001    // MinIO Console
     ],
 
     "postCreateCommand": "poetry config virtualenvs.in-project true",

@@ -9,7 +9,7 @@ from mapa.manage.api_scope.api_scope_model import ApiScope
 from mapa.manage.invitation.invitation_service import InvitationService
 from mapa.manage.organization.organization_model import Organization
 from mapa.manage.organization_client.organization_client_model import OrganizationClient
-from mapa.manage.user.user_model import CreateUser, UpdateAllUser, UpdateUser, User
+from mapa.manage.user.user_model import CreateUser, UpdateAllUser, UpdateUser, User, UserMinimal
 from mapa.manage.user.user_repository import UserRepository
 from mapa.manage.api.api_service import ApiService
 from mapa.manage.organization.organization_service import OrganizationService
@@ -124,6 +124,34 @@ class UserService(
             Filter(field="tenant_users.role", op=FilterOp.NOT_EQUAL, value="owner")
         )
         return await super().paging(query_args, tenant_id)  # type: ignore
+
+    async def search(
+        self, query_args: QueryArgs, tenant_id: str | None = None
+    ) -> PagingResult[UserMinimal]:
+        """Kullanıcı arama için kısıtlı bilgi döner."""
+        if query_args.where == None:
+            query_args.where = []
+        query_args.where.append(
+            Filter(field="tenant_users.tenant_id", op=FilterOp.EQUAL, value=tenant_id)
+        )
+        query_args.where.append(
+            Filter(field="tenant_users.role", op=FilterOp.NOT_EQUAL, value="owner")
+        )
+        
+        total = await self.repo.count(query_args, tenant_id)
+        db_objs = await self.repo.find(query_args, tenant_id)
+        
+        items = [
+            UserMinimal.model_validate(self.repo.dict(obj, query_args.select))
+            for obj in db_objs
+        ]
+        
+        return PagingResult[UserMinimal](
+            total=total,
+            items=items,
+            limit=query_args.limit,
+            offset=query_args.offset
+        )
 
     async def get_user_scopes(
         self, client_id: str, user_id: str, tenant_id: str | None = None

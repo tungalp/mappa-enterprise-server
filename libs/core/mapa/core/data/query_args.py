@@ -7,7 +7,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 
-class FilterOp(Enum):
+class FilterOp(str, Enum):
     """Filtreler"""
 
     EQUAL = "eq"
@@ -48,7 +48,7 @@ class FilterOp(Enum):
 class FilterType(str, Enum):
     """Filtre tipleri"""
 
-    FILTER = "filter",
+    FILTER = "filter"
     AND = "and"
     OR = "or"
     

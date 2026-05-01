@@ -37,6 +37,17 @@ class User(BaseModel):
     ldap_server_id: UUID | None = None
 
 
+class UserMinimal(BaseModel):
+    """Kısıtlı User Modeli (Arama sonuçları için)"""
+
+    id: UUID
+    subject_id: str
+    name: str
+    surname: str
+    email: str
+    picture: str | None = None
+
+
 class CreateUser(BaseModel):
     subject_id: str | None = None
     name: str

@@ -2,6 +2,8 @@ from mapa.core.data.async_db import AsyncDatabase
 from mapa.core.data.base_entity_service import BaseEntityService
 from mapa.spatial.file_store.file_store_model import CreateFileStore, UpdateAllFileStore, UpdateFileStore, FileStore
 from mapa.spatial.file_store.file_store_repository import FileStoreRepository
+from mapa.core.data.query_args import QueryArgs
+
 
 import json
 from datetime import datetime
@@ -15,8 +17,32 @@ import base64
 class FileStoreService(BaseEntityService[FileStoreRepository, FileStore, CreateFileStore, UpdateFileStore, UpdateAllFileStore]):
     """FileStore Servisi"""
 
-    def __init__(self, async_db: AsyncDatabase) -> None:
+    def __init__(self, async_db: AsyncDatabase, minio_service: Any = None) -> None:
         super().__init__(async_db, FileStoreRepository, FileStore)
+        self.minio_service = minio_service
+
+    async def delete(self, obj_id: Any, tenant_id: str | None = None) -> bool:
+        item = await self.get(obj_id, tenant_id)
+        if item and item.file_url and self.minio_service:
+            self.minio_service.delete_object(item.file_url)
+        return await super().delete(obj_id, tenant_id)
+
+    async def delete_by_ids(self, obj_ids: List[Any], tenant_id: str | None = None) -> int:
+        for obj_id in obj_ids:
+            item = await self.get(obj_id, tenant_id)
+            if item and item.file_url and self.minio_service:
+                self.minio_service.delete_object(item.file_url)
+        return await super().delete_by_ids(obj_ids, tenant_id)
+
+    async def delete_all(self, query_args: QueryArgs, tenant_id: str | None = None) -> int:
+        items = await self.find(query_args, tenant_id)
+        if items:
+            for item in items:
+                if item.file_url and self.minio_service:
+                    self.minio_service.delete_object(item.file_url)
+        return await super().delete_all(query_args, tenant_id)
+
+
 
 class GeoJSONConflictResolver:
     row_guid = "row_guid"

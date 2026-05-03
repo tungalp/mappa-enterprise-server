@@ -7,8 +7,11 @@ class FileStoreContainer(containers.DeclarativeContainer):
 
     """
     database = providers.Dependency()
+    minio_service = providers.Dependency()
 
     file_store_service = providers.Factory(
         FileStoreService,
         async_db=database,
+        minio_service=minio_service
     )
+

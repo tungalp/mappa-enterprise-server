@@ -117,11 +117,19 @@ class MessageService(BaseEntityService[MessageRepository, Message, CreateMessage
     async def delete_room_history(self, room_id: UUID, tenant_id: str | None = None):
         """Deletes all messages and files in a room"""
         if self._minio_service:
-            messages = await self.repo.keyset_paginate_room(room_id, limit=10000, tenant_id=tenant_id)
-            for msg in messages:
-                for file in msg.files:
-                    # Extract object name from URL (usually last part after /)
-                    object_name = file.file_url.split("/")[-1]
+            async with self._async_db.session() as session:
+                from sqlalchemy import select, text
+                from messaging.message.entity import MessageFileEntity, MessageEntity
+                
+                # Set tenant_id for the session
+                if tenant_id:
+                    await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+                
+                stmt = select(MessageFileEntity.file_url).join(MessageEntity).where(MessageEntity.room_id == room_id)
+                result = await session.execute(stmt)
+                file_urls = result.scalars().all()
+                for url in file_urls:
+                    object_name = url.split("/")[-1].split("?")[0]
                     self._minio_service.delete_object(object_name)
         
         await self.repo.delete_room_messages(room_id, tenant_id)
@@ -129,10 +137,26 @@ class MessageService(BaseEntityService[MessageRepository, Message, CreateMessage
     async def delete_dm_history(self, user_a: UUID, user_b: UUID, tenant_id: str | None = None):
         """Deletes all messages and files between two users"""
         if self._minio_service:
-            messages = await self.repo.keyset_paginate_dm(user_a, user_b, limit=10000, tenant_id=tenant_id)
-            for msg in messages:
-                for file in msg.files:
-                    object_name = file.file_url.split("/")[-1]
+            async with self._async_db.session() as session:
+                from sqlalchemy import select, or_, and_, text
+                from messaging.message.entity import MessageFileEntity, MessageEntity
+                
+                # Set tenant_id for the session
+                if tenant_id:
+                    await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+                
+                dm_condition = or_(
+                    and_(MessageEntity.sender_id == user_a, MessageEntity.receiver_id == user_b),
+                    and_(MessageEntity.sender_id == user_b, MessageEntity.receiver_id == user_a)
+                )
+                stmt = select(MessageFileEntity.file_url).join(MessageEntity).where(dm_condition)
+                result = await session.execute(stmt)
+                file_urls = result.scalars().all()
+                for url in file_urls:
+                    object_name = url.split("/")[-1].split("?")[0]
                     self._minio_service.delete_object(object_name)
         
         await self.repo.delete_dm_messages(user_a, user_b, tenant_id)
+
+
+

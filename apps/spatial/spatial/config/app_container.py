@@ -10,6 +10,8 @@ from spatial.base_layer.container import BaseLayerContainer
 from spatial.bookmark.container import BookmarkContainer
 from spatial.connection.container import ConnectionContainer
 from spatial.file_store.container import FileStoreContainer
+from spatial.file_store.minio_service import MinioService
+
 from spatial.definition.container import DefinitionContainer
 from spatial.hook.container import HookContainer
 from spatial.layer.container import LayerContainer
@@ -55,6 +57,12 @@ class AppContainer(containers.DeclarativeContainer):
         connection=rabbit_connection,
     )
 
+    minio_service = providers.Singleton(
+        MinioService,
+        config=config.minio
+    )
+
+
     service_messenger = providers.Singleton(
         ServiceMessenger,
         message_bus=message_bus,
@@ -66,7 +74,12 @@ class AppContainer(containers.DeclarativeContainer):
 
     connection_package = providers.Container(ConnectionContainer, database=db.provided)
     
-    file_store_package = providers.Container(FileStoreContainer, database=db.provided)
+    file_store_package = providers.Container(
+        FileStoreContainer, 
+        database=db.provided,
+        minio_service=minio_service
+    )
+
 
     layer_definition_package = providers.Container(
         LayerDefinitionContainer, database=db.provided

@@ -1,4 +1,5 @@
 # [Choice] Python version: 3.12 (bookworm)
+# Rebuild triggered on: 2026-05-09
 ARG VARIANT=3.12-bookworm
 FROM mcr.microsoft.com/vscode/devcontainers/python:1-${VARIANT}
 
@@ -9,7 +10,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_CACHE_DIR=/tmp/.pip-cache 
 
 # Remove broken Yarn repo
-RUN rm -f /etc/apt/sources.list.d/yarn.list
+RUN rm -f /etc/apt/sources.list.d/yarn.list   
+
 
 # Install system dependencies
 RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \

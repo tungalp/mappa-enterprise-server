@@ -1,0 +1,141 @@
+{
+  "tilejson": "2.1.0",
+  "name": "tanzania",
+  "description": "tanzania",
+  "version": "1.1.0",
+  "format": "quantized-mesh-1.0",
+  "attribution": "",
+  "schema": "geographic",
+  "tiles": [
+    "{z}/{x}/{y}.terrain?v={version}"
+  ],
+  "projection": "EPSG:4326",
+  "bounds": [
+    28.839027766666675,
+    -11.844861099999997,
+    40.59430554444445,
+    -0.8559722111111085
+  ],
+  "available": [
+    [
+      {
+        "startX": 0,
+        "startY": 0,
+        "endX": 1,
+        "endY": 0
+      }
+    ],
+    [
+      {
+        "startX": 2,
+        "startY": 0,
+        "endX": 2,
+        "endY": 1
+      }
+    ],
+    [
+      {
+        "startX": 4,
+        "startY": 1,
+        "endX": 5,
+        "endY": 3
+      }
+    ],
+    [
+      {
+        "startX": 9,
+        "startY": 3,
+        "endX": 11,
+        "endY": 6
+      }
+    ],
+    [
+      {
+        "startX": 18,
+        "startY": 6,
+        "endX": 23,
+        "endY": 12
+      }
+    ],
+    [
+      {
+        "startX": 36,
+        "startY": 13,
+        "endX": 46,
+        "endY": 24
+      }
+    ],
+    [
+      {
+        "startX": 72,
+        "startY": 26,
+        "endX": 92,
+        "endY": 48
+      }
+    ],
+    [
+      {
+        "startX": 145,
+        "startY": 53,
+        "endX": 184,
+        "endY": 96
+      }
+    ],
+    [
+      {
+        "startX": 291,
+        "startY": 106,
+        "endX": 369,
+        "endY": 192
+      }
+    ],
+    [
+      {
+        "startX": 583,
+        "startY": 213,
+        "endX": 739,
+        "endY": 384
+      }
+    ],
+    [
+      {
+        "startX": 1166,
+        "startY": 426,
+        "endX": 1479,
+        "endY": 768
+      }
+    ],
+    [
+      {
+        "startX": 2332,
+        "startY": 853,
+        "endX": 2958,
+        "endY": 1536
+      }
+    ],
+    [
+      {
+        "startX": 4664,
+        "startY": 1706,
+        "endX": 5916,
+        "endY": 3072
+      }
+    ],
+    [
+      {
+        "startX": 9329,
+        "startY": 3413,
+        "endX": 11832,
+        "endY": 6144
+      }
+    ],
+    [
+      {
+        "startX": 18659,
+        "startY": 6826,
+        "endX": 23665,
+        "endY": 12288
+      }
+    ]
+  ]
+}

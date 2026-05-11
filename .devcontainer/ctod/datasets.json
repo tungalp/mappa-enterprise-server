@@ -1,0 +1,42 @@
+{
+  "datasets": [
+    {
+      "name": "tanzania",
+      "options": {
+        "cog": "/vsis3/terrain-data/tanzania_30m_merged.tif",
+        "bounds": [29.0, -12.0, 41.0, -1.0],
+        "minZoom": 0,
+        "maxZoom": 18,
+        "noData": -9999,
+        "meshingMethod": "martini",
+        "resamplingMethod": "bilinear",
+        "defaultMaxError": 100,
+        "zoomMaxErrors": {
+          "7": 400,
+          "8": 300,
+          "9": 250,
+          "10": 200,
+          "11": 150,
+          "12": 100,
+          "13": 30,
+          "14": 20,
+          "15": 10,
+          "16": 8,
+          "17": 5,
+          "18": 3
+        }
+      }
+    },
+    {
+      "name": "tanzania_p2",
+      "options": {
+        "cog": "/vsis3/terrain-data/tanzania_part2.tif",
+        "minZoom": 0,
+        "maxZoom": 18,
+        "noData": -9999,
+        "meshingMethod": "martini",
+        "resamplingMethod": "bilinear"
+      }
+    }
+  ]
+}

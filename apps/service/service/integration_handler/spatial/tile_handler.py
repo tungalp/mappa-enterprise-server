@@ -64,6 +64,20 @@ class TileHandler:
             "follow_redirects": False
         }
         content: Any = self._create_content(service_request)
+        
+        # Development Internal Proxy Translation
+        if "localhost:8091" in url_path:
+            url_path = url_path.replace("localhost:8091", "nginx-terrain:8091")
+            service_request.query_params = None
+        elif "127.0.0.1:8091" in url_path:
+            url_path = url_path.replace("127.0.0.1:8091", "nginx-terrain:8091")
+            service_request.query_params = None
+            
+        # Production Internal Proxy Translation (Avoids Hairpinning)
+        if "cdn.kabart.com.tr" in url_path:
+            # If there's a port, remove it and map to internal 8081.
+            url_path = url_path.replace("cdn.kabart.com.tr:8081", "nginx-terrain:8081")
+            url_path = url_path.replace("cdn.kabart.com.tr", "nginx-terrain:8081")
 
         async with AsyncClient(**client_params) as client:
             request = client.build_request(

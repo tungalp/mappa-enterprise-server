@@ -141,12 +141,16 @@ async def root(
 
         # Request modification timing
         request_mod_start = time.perf_counter()
-        modified_request = root_service.modify_service_request(service_request, handler)
+        # Optimization: Skip expensive recursive parameter mapping for terrain tiles
+        if "/terrain/" in request.url.path:
+            modified_request = service_request
+        else:
+            modified_request = root_service.modify_service_request(service_request, handler)
         timing_data['request_modification'] = time.perf_counter() - request_mod_start
 
         # Request logging preparation timing
         logging_prep_start = time.perf_counter()
-        if handler.route.full_logging == True:
+        if handler.route.full_logging == True and "/terrain/" not in request.url.path:
             try:
                 request_body_str = json.dumps(service_request.body, ensure_ascii=False, cls=JsonEncoder)
             except Exception:
@@ -173,7 +177,7 @@ async def root(
         service_response.context = service_request.context
         # Response logging preparation timing
         response_logging_start = time.perf_counter()
-        if handler.route.full_logging == True:
+        if handler.route.full_logging == True and "/terrain/" not in request.url.path:
             try:
                 response_body_str = json.dumps(
                     service_response.body, ensure_ascii=False, cls=JsonEncoder
@@ -204,7 +208,7 @@ async def root(
 
         # APM and logging timing
         apm_logging_start = time.perf_counter()
-        if handler.route.full_logging == True:
+        if handler.route.full_logging == True and "/terrain/" not in request.url.path:
             elasticapm.set_custom_context(  # type: ignore
                 {
                     "req_body": safe_truncate(request_body_str),

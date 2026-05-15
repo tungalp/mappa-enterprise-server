@@ -394,7 +394,7 @@ class RootService(BaseDbService):
 
         scope = ServiceScope(
             header=service_response.headers,
-            body=service_response.body or {},
+            body=service_response.body if service_response.body is not None else {},
             status_code=service_response.status_code,
             context=ret_response.context,
         )
@@ -427,8 +427,16 @@ class RootService(BaseDbService):
             "image/png; mode=8bit",
             "application/octet-stream"
         ]
+        
+        binary_formats = [
+            "application/vnd.mapbox-vector-tile" # Added for Vector Tiles
+        ]
 
-        params = {"content": service_response.body, "headers": service_response.headers, "status_code": service_response.status_code}
+        content = service_response.body
+        if isinstance(content, dict):
+            content = json.dumps(content, default=str)
+
+        params = {"content": content, "headers": service_response.headers, "status_code": service_response.status_code}
         if service_response.response_type.find("application/json") > -1:
             return JSONResponseX(**params)
         elif (
@@ -456,14 +464,13 @@ class RootService(BaseDbService):
             or service_response.response_type.find("application/vnd.ogc.se_xml") > -1
         ):
             return PlainTextResponse(**params)
-        elif (
-            service_response.response_type.find("application/vnd.mapbox-vector-tile")
-            > -1
-        ):
-            return PlainTextResponse(**params)
         elif service_response.response_type.find("application/vnd.ogc.wms_xml") > -1:
             return PlainTextResponse(**params)
         elif service_response.response_type in image_formats:
+            return Response(
+                params["content"], media_type=service_response.response_type
+            )
+        elif service_response.response_type in binary_formats:
             return Response(
                 params["content"], media_type=service_response.response_type
             )

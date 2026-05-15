@@ -97,6 +97,7 @@ class TileHandler:
             cookies=dict(response.cookies),
             body=response.read()
         )
+        
         if service_response.response_type.find("application/json") > -1:
             service_response.body = json.loads(service_response.body) # type: ignore
 

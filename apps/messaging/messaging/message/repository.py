@@ -139,3 +139,18 @@ class MessageRepository(BaseRepository[MessageEntity]):
             msg_stmt = delete(MessageEntity).where(dm_condition)
             await session.execute(msg_stmt)
             await session.commit()
+
+    async def delete_message_by_id(self, message_id: UUID, tenant_id: str | None = None):
+        """Deletes a single message and its file records"""
+        async with self._db.session() as session:
+            t_id = tenant_id if tenant_id and tenant_id not in ('default', 'None', 'undefined') else "00000000-0000-0000-0000-000000000000"
+            await session.execute(text(f"set app.tenant_id='{t_id}'"))
+            
+            # 1. Delete associated files first
+            file_stmt = delete(MessageFileEntity).where(MessageFileEntity.message_id == message_id)
+            await session.execute(file_stmt)
+            
+            # 2. Delete message
+            msg_stmt = delete(MessageEntity).where(MessageEntity.id == message_id)
+            await session.execute(msg_stmt)
+            await session.commit()

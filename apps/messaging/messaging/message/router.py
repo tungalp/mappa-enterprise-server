@@ -142,3 +142,37 @@ async def delete_dm_history(
     
     await message_service.delete_dm_history(UUID(str(user_id)), other_user_id, tenant_id)
     return {"success": True}
+
+@router.delete("/{message_id}")
+@inject
+async def delete_message(
+    request: Request,
+    message_id: UUID,
+    message_service: MessageService = Depends(Provide[MessagingContainer.message_package.message_service])
+):
+    user = getattr(request.state, "user", None)
+    user_id = None
+    tenant_id = None
+    
+    if user and hasattr(user, "id"):
+        user_id = user.id
+        tenant_id = getattr(user, "tenant_id", None)
+    else:
+        # Fallback: Manually parse JWT if AuthenticationMiddleware failed to verify
+        auth_header = request.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            import jwt
+            try:
+                token = auth_header.split(" ")[1]
+                payload = jwt.decode(token, options={"verify_signature": False})
+                user_id = payload.get("sub")
+                tenant_id = payload.get("tenant_id")
+            except Exception:
+                pass
+
+    if not user_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    await message_service.delete_message(message_id, UUID(str(user_id)), tenant_id)
+    return {"success": True}

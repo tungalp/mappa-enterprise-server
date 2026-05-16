@@ -157,6 +157,41 @@ class MessageService(BaseEntityService[MessageRepository, Message, CreateMessage
                     self._minio_service.delete_object(object_name)
         
         await self.repo.delete_dm_messages(user_a, user_b, tenant_id)
+ 
+    async def delete_message(self, message_id: UUID, user_id: UUID, tenant_id: str | None = None):
+        """Deletes a single message and its files"""
+        async with self._async_db.session() as session:
+            from sqlalchemy import select, text
+            from messaging.message.entity import MessageFileEntity, MessageEntity
+            
+            # Set tenant_id for the session
+            if tenant_id:
+                await session.execute(text(f"set app.tenant_id='{tenant_id}'"))
+            
+            # 1. Fetch message to check permissions (only sender can delete their own message)
+            stmt = select(MessageEntity).where(MessageEntity.id == message_id)
+            result = await session.execute(stmt)
+            msg = result.scalar_one_or_none()
+            
+            if not msg:
+                return # Already gone
+            
+            # Check if user is the sender
+            if msg.sender_id != user_id:
+                from fastapi import HTTPException
+                raise HTTPException(status_code=403, detail="You can only delete your own messages")
+
+            # 2. Delete files from MinIO if any
+            if self._minio_service:
+                stmt = select(MessageFileEntity.file_url).where(MessageFileEntity.message_id == message_id)
+                result = await session.execute(stmt)
+                file_urls = result.scalars().all()
+                for url in file_urls:
+                    object_name = url.split("/")[-1].split("?")[0]
+                    self._minio_service.delete_object(object_name)
+
+            # 3. Delete from DB
+            await self.repo.delete_message_by_id(message_id, tenant_id)
 
 
 

@@ -37,6 +37,7 @@
         33105,  // Messaging
         33106,  // BPM
         33107,  // Spatial
+        33108,  // Desktop-Mobile
         33200,  // MockApp
         5432,   // PostgreSQL
         5672,   // RabbitMQ AMQP

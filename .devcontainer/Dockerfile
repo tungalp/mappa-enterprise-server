@@ -85,7 +85,7 @@ ENV PATH="/home/vscode/.local/bin:${PATH}"
 
 
 # Expose application ports
-EXPOSE 33100 33101 33102 33103 33104 33105 33106 33107 33200
+EXPOSE 33100 33101 33102 33103 33104 33105 33106 33107 33108 33200
 
 # Switch back to root for devcontainer setup
 USER root

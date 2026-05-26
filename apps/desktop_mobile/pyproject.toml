@@ -1,0 +1,32 @@
+[tool.poetry]
+name = "app-desktop-mobile"
+version = "0.1.0"
+description = "MAPA Desktop & Mobile GIS Collaborative Store Service"
+authors = ["Antigravity <antigravity@google.com>"]
+packages = [
+    { include = "desktop_mobile" },
+    { include = "tests" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+lib-app = {path = "../../libs/app", develop = true}
+lib-core = {path = "../../libs/core", develop = true}
+minio = "^7.2.7"
+geopandas = "^0.14.1"
+shapely = "^2.0.1"
+pyjwt = "^2.8.0"
+passlib = {extras = ["bcrypt"], version = "^1.7.4"}
+
+[tool.poetry.group.dev.dependencies]
+pytest = "7.4.2"
+pytest-asyncio = "0.21.1"
+pylint = "2.17.5"
+lib-test = {path = "../../libs/test"}
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

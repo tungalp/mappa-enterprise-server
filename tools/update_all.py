@@ -31,7 +31,7 @@ async def main():
         "core", "test", "app", "manage", "sso", "gateway", "application", "spatial"
     ]
     app_list = [
-        "application", "gateway", "spatial", "manage", "mock_app", "service", "sso"
+        "application", "gateway", "spatial", "manage", "mock_app", "service", "sso", "desktop_mobile"
     ]
     # Kütüphaneler sırayla çalıştırılır
     for lib in lib_list:

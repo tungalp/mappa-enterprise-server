@@ -31,6 +31,7 @@ services:
       - "33105:33105"
       - "33106:33106"
       - "33107:33107"
+      - "33108:33108"
       - "33200:33200"
     extra_hosts:
       - "host.docker.internal:host-gateway"  
@@ -61,7 +62,7 @@ services:
       POSTGRES_DB: mapa_test
       PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "5432:5432"
+      - "5454:5432"
     networks:
       - mappa-network
     healthcheck:
@@ -154,6 +155,8 @@ services:
       /usr/bin/mc alias set myminio http://minio:9000 mapa mapa12345;
       /usr/bin/mc mb myminio/terrain-data --ignore-existing;
       /usr/bin/mc mb myminio/mapa-message-files --ignore-existing;
+      /usr/bin/mc mb myminio/mapa-desktop-mobile-files --ignore-existing;
+      /usr/bin/mc mb myminio/mapa-spatial-files --ignore-existing;
       /usr/bin/mc anonymous set download myminio/terrain-data;
       exit 0;
       "

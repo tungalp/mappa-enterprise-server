@@ -1,0 +1,32 @@
+db:
+  url: "postgresql+asyncpg://mapa:12345Abc.@postgres/mapa_prod"
+oidc:
+  jwks_uri: "http://sso:8002/api/sso/oidc/jwks"
+  service_host: "http://sso:8002"
+elk:
+  host: "host.docker.internal"
+  port: 5000
+apm:
+  service_name: "mapa-desktop-mobile"
+  secret_token: ""
+  server_url: "http://host.docker.internal:8200"
+  environment: "mapa-desktop-mobile-service-environment"
+  body: "all"
+  log_level: "info"
+alembic:
+  migrations_path: ""
+  url: "postgresql://mapa:12345Abc.@postgres/mapa_prod"
+rabbitmq:
+  exchange_name: "mapa-exchange"
+  host: "rabbitmq"
+  port: 5672
+  username: "mapa"
+  password: "mapa"
+  virtual_host: "/"
+minio:
+  endpoint: "minio:9000"
+  external_endpoint: "https://storage.kabart.com.tr/:9000"
+  access_key: "mapa"
+  secret_key: "mapa12345"
+  bucket: "desktop-mobile"
+  secure: false

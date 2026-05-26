@@ -68,6 +68,14 @@
             }
         },
         {
+            "label": "desktop_mobile-poetry-install",
+            "type": "shell",
+            "command": "poetry config virtualenvs.in-project true && poetry install && exit",
+            "options": {
+                "cwd": "${workspaceFolder}/apps/desktop_mobile"
+            }
+        },
+        {
             "label": "update-all-apps",
             "dependsOrder": "sequence",
             "dependsOn": [
@@ -77,7 +85,8 @@
                 "service-poetry-install",
                 "application-poetry-install",
                 "spatial-poetry-install",
-                "messaging-poetry-install"
+                "messaging-poetry-install",
+                "desktop_mobile-poetry-install"
             ]
         }
     ]

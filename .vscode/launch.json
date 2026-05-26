@@ -214,6 +214,28 @@
             }
         },
         {
+            "name": "Desktop-Mobile",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "desktop_mobile.main:app",
+                "--port",
+                "33108",
+                "--host",
+                "0.0.0.0",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}/apps/desktop_mobile",
+            "jinja": false,
+            "justMyCode": true,
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/apps/desktop_mobile/.venv/bin/python3",
+            "env": {
+                "PYTHONPATH": "/workspace"
+            }
+        },
+        {
             "name": "Python: Current File",
             "type": "debugpy",
             "request": "launch",
@@ -235,7 +257,8 @@
                 "Service",
                 "Application",
                 "Spatial",
-                "Messaging"
+                "Messaging",
+                "Desktop-Mobile"
             ],
             "stopAll": true,
             "preLaunchTask": "update-all-apps"

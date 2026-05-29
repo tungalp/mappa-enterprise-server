@@ -31,12 +31,16 @@ async def get_presigned_upload_url(
     request: Request,
     file_name: str,
     bucket: Optional[str] = None,
+    map_id: Optional[uuid.UUID] = None,
     layer_service: LayerService = Depends(Provide[AppContainer.layer_service]),
     _ = Depends(check_permission(action=ResourceAccess.ADMIN, resource=ResourceType.LAYER))
 ):
     """Generates a direct pre-signed PUT S3/MinIO upload URL for large files."""
-    layer_id = uuid.uuid4()
-    url_path = f"layers/{layer_id}/{file_name}"
+    if map_id:
+        url_path = f"maps/{map_id}/{file_name}"
+    else:
+        layer_id = uuid.uuid4()
+        url_path = f"layers/{layer_id}/{file_name}"
     try:
         upload_url = layer_service.minio_service.get_presigned_upload_url(url_path, bucket=bucket)
         return PresignedUrlResponse(upload_url=upload_url, url_path=url_path)

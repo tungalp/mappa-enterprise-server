@@ -226,3 +226,25 @@ async def remove_layer_from_map(
     if not is_success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Link does not exist")
     return {"message": f"Unlinked Layer {layer_id} from Map {map_id}"}
+
+@router.post("/fonts/upload", status_code=status.HTTP_201_CREATED)
+@inject
+async def upload_custom_font(
+    request: Request,
+    file: UploadFile = File(...),
+    map_service: MapService = Depends(Provide[AppContainer.map_service]),
+    _ = Depends(check_permission(action=ResourceAccess.ADMIN, resource=ResourceType.MAP))
+):
+    """Uploads a custom TTF/OTF font file, saves it to MinIO/S3, and synchronizes it locally for styling."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file uploaded")
+    
+    file_data = await file.read()
+    try:
+        object_name = map_service.upload_custom_font(file.filename, file_data)
+        return {
+            "message": f"Font {file.filename} uploaded and synchronized successfully",
+            "s3_path": object_name
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

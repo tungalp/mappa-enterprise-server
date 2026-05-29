@@ -155,9 +155,11 @@ services:
       /usr/bin/mc alias set myminio http://minio:9000 mapa mapa12345;
       /usr/bin/mc mb myminio/terrain-data --ignore-existing;
       /usr/bin/mc mb myminio/mapa-message-files --ignore-existing;
-      /usr/bin/mc mb myminio/mapa-desktop-mobile-files --ignore-existing;
+      /usr/bin/mc mb myminio/desktop-mobile --ignore-existing;
       /usr/bin/mc mb myminio/mapa-spatial-files --ignore-existing;
       /usr/bin/mc anonymous set download myminio/terrain-data;
+      touch /tmp/.placeholder;
+      /usr/bin/mc cp /tmp/.placeholder myminio/desktop-mobile/fonts/.placeholder;
       exit 0;
       "
     networks:
@@ -195,6 +197,62 @@ services:
     networks:
       - mappa-network
 
+  qgis-server:
+    image: qgis/qgis-server:latest
+    restart: unless-stopped
+    command: >
+      /bin/bash -c "
+        echo 'fastcgi_param QT_QPA_FONTDIR /usr/share/fonts/truetype/custom;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param QT_QPA_PLATFORM offscreen;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param HOME /var/lib/qgis;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param AWS_ACCESS_KEY_ID mapa;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param AWS_SECRET_ACCESS_KEY mapa12345;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param AWS_S3_ENDPOINT minio:9000;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param AWS_S3_ENDPOINT_URL http://minio:9000;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param AWS_VIRTUAL_HOST_STYLE FALSE;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param AWS_VIRTUAL_HOSTING FALSE;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param AWS_HTTPS NO;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param GDAL_HTTP_UNSAFESSL YES;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param GDAL_DISABLE_READDIR_ON_OPEN YES;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param VSI_CACHE TRUE;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param GDAL_CACHEMAX 1024;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param AWS_REGION us-east-1;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param QGIS_SERVER_DISABLE_GEOMETRY_SIMPLIFICATION true;' >> /etc/nginx/fastcgi_params &&
+        echo 'fastcgi_param QGIS_SERVER_CACHE_SIZE 0;' >> /etc/nginx/fastcgi_params &&
+        /usr/local/bin/start-xvfb-nginx.sh
+      "
+    environment:
+      # S3/MinIO environment variables for GDAL Virtual File System (VSI)
+      AWS_ACCESS_KEY_ID: "mapa"
+      AWS_SECRET_ACCESS_KEY: "mapa12345"
+      AWS_S3_ENDPOINT: "minio:9000"
+      AWS_S3_ENDPOINT_URL: "http://minio:9000"
+      AWS_VIRTUAL_HOST_STYLE: "FALSE"
+      AWS_VIRTUAL_HOSTING: "FALSE"
+      AWS_HTTPS: "NO"
+      GDAL_HTTP_UNSAFESSL: "YES"
+      GDAL_DISABLE_READDIR_ON_OPEN: "YES"
+      VSI_CACHE: "TRUE"
+      GDAL_CACHEMAX: "1024"
+      AWS_REGION: "us-east-1"
+      # QGIS Server specific variables
+      QGIS_SERVER_DISABLE_GEOMETRY_SIMPLIFICATION: "true"
+      QGIS_SERVER_CACHE_SIZE: "0"
+      QGIS_SERVER_LOG_LEVEL: "1"  # INFO level
+      QGIS_SERVER_LOG_PROFILE: "true"
+      QT_QPA_PLATFORM: "offscreen"
+      QT_QPA_FONTDIR: "/usr/share/fonts/truetype/custom"
+    depends_on:
+      minio:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ..:/workspace:cached
+      - ../scratch/fonts:/usr/share/fonts/truetype/custom:ro
+    networks:
+      - mappa-network
+
   nginx-terrain:
     build:
       context: ./nginx
@@ -208,6 +266,7 @@ services:
       - CDN_DOMAIN=cdn.kabart.com.tr
     depends_on:
       - ctod
+      - qgis-server
     ports:
       - "8091:8091" 
     volumes:

@@ -5,8 +5,20 @@ from datetime import timedelta
 class MinioService:
     def __init__(self, config: Any):
         # Configuration comes in as a dict from dependency-injector
+        def _clean_endpoint(endpoint: str) -> str:
+            if not endpoint:
+                return "localhost:9000"
+            if "://" in endpoint:
+                endpoint = endpoint.split("://")[-1]
+            endpoint = endpoint.strip("/")
+            endpoint = endpoint.replace("/:", ":")
+            if "/" in endpoint:
+                endpoint = endpoint.split("/")[0]
+            return endpoint
+
+        endpoint = _clean_endpoint(config.get("endpoint", "minio:9000"))
         self._client = Minio(
-            config.get("endpoint", "minio:9000"),
+            endpoint,
             access_key=config.get("access_key"),
             secret_key=config.get("secret_key"),
             secure=config.get("secure", False),
@@ -15,8 +27,9 @@ class MinioService:
         
         # A separate client specifically for generating presigned URLs for the browser/clients.
         # Uses 'external_endpoint' for production domains, falling back to 'localhost' for local dev.
+        ext_endpoint = _clean_endpoint(config.get("external_endpoint", "localhost:9000"))
         self._presign_client = Minio(
-            config.get("external_endpoint", "localhost:9000"),
+            ext_endpoint,
             access_key=config.get("access_key"),
             secret_key=config.get("secret_key"),
             secure=config.get("secure", False),
@@ -82,6 +95,15 @@ class MinioService:
                 self._client.remove_object(target_bucket, obj.object_name)
         except Exception as e:
             print(f"Minio Error deleting prefix {prefix} from {target_bucket}: {e}")
+
+    def list_objects(self, prefix: str, bucket: str = None) -> list:
+        """Lists objects under a prefix from Minio"""
+        target_bucket = bucket or self._bucket
+        try:
+            return list(self._client.list_objects(target_bucket, prefix=prefix, recursive=True))
+        except Exception as e:
+            print(f"Minio Error listing prefix {prefix} from {target_bucket}: {e}")
+            return []
 
     def get_object(self, object_name: str, bucket: str = None) -> bytes:
         """Downloads an object from Minio"""

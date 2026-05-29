@@ -93,3 +93,139 @@ def normalize_qml(input_data):
     except Exception as e:
         print(f"Normalization failed: {e}")
         return "".join(text.split())
+
+def get_base_filename(fn: str) -> str:
+    fn = fn.lower()
+    for ext in ['.zip', '.gdb', '.shp', '.geojson', '.tif', '.tiff', '.kml', '.kmz', '.gpkg']:
+        if fn.endswith(ext):
+            fn = fn[:-len(ext)]
+    return fn
+
+def process_qgs_xml(xml_data: bytes, layers_lookup: dict) -> bytes:
+    """
+    Parses and rewrites datasource paths inside raw QGS XML data.
+    """
+    import xml.etree.ElementTree as ET
+    import os
+
+    # Build a base-name lookup mapping (e.g., "sheet_5349_1" -> Layer)
+    base_layers_lookup = {}
+    for clean_fn, layer in layers_lookup.items():
+        base_layers_lookup[get_base_filename(clean_fn)] = layer
+        # Support fallback GDB sub-layer matching using layer name directly
+        if layer.name:
+            base_layers_lookup[layer.name.lower()] = layer
+
+    try:
+        xml_str = xml_data.decode('utf-8')
+        root = ET.fromstring(xml_str)
+    except Exception as e:
+        print(f"[QGS Rewrite] XML parsing failed: {e}")
+        return xml_data
+        
+    modified = False
+    # Find all <datasource> elements
+    for ds in root.findall(".//datasource"):
+        if ds.text:
+            ds_text = ds.text
+            # Split query parameters if any (e.g. |layername=xxx)
+            if '|' in ds_text:
+                file_part, query_part = ds_text.split('|', 1)
+                query_part = '|' + query_part
+            else:
+                file_part = ds_text
+                query_part = ''
+            
+            # Extract layername from query_part if present for GDB matching fallback
+            layername_fallback = None
+            if "layername=" in query_part:
+                layername_fallback = query_part.split("layername=")[1].split("&")[0].lower()
+
+            # Replace backslashes with forward slashes for unified path handling
+            normalized_path = file_part.replace('\\', '/')
+            filename = os.path.basename(normalized_path)
+            filename_lower = filename.lower()
+            
+            # Check base filename or layer name matching
+            base_fn = get_base_filename(filename_lower)
+            layer = None
+            if base_fn in base_layers_lookup:
+                layer = base_layers_lookup[base_fn]
+            elif layername_fallback in base_layers_lookup:
+                layer = base_layers_lookup[layername_fallback]
+                
+            if layer:
+                t_lower = layer.type.lower()
+                # ONLY rewrite if it is a file-based layer. Service/database layers (wfs, wms, wmts, wcs, postgres, mssql, oracle, arcgismapserver) must not be rewritten.
+                if t_lower in ('wfs', 'wms', 'wmts', 'wcs', 'postgres', 'mssql', 'oracle', 'arcgismapserver'):
+                    continue
+
+                bucket = layer.bucket or "desktop-mobile"
+                
+                # Formulate the correct unzipped/raw path for vsis3
+                clean_url_path = layer.url_path.split('|')[0] if layer.url_path else ""
+                s3_folder = clean_url_path.rsplit('/', 1)[0] if '/' in clean_url_path else f"layers/{layer.id}"
+                
+                is_zipped_upload = clean_url_path.lower().endswith(".zip") and t_lower != ".zip"
+                if is_zipped_upload:
+                    # Zipped upload for an unzipped layer source -> point to the extracted file/folder in S3
+                    vsis3_path = f"/vsis3/{bucket}/{s3_folder}/{filename_lower}"
+                else:
+                    # Natively zipped or standard unzipped files -> point to the registered S3 url_path
+                    vsis3_path = f"/vsis3/{bucket}/{layer.url_path}"
+                    
+                new_ds_text = f"{vsis3_path}{query_part}"
+                print(f"[QGZ Rewrite] Replacing '{ds_text}' with '{new_ds_text}'")
+                ds.text = new_ds_text
+                modified = True
+                
+    if modified:
+        return ET.tostring(root, encoding='utf-8')
+    return xml_data
+
+def process_qgz_project(file_data: bytes, layers_lookup: dict, is_qgs: bool = False) -> bytes:
+    """
+    Saves incoming project bytes to a temp file, extracts and processes the .qgs XML
+    inside, replaces file-based layers with their correct /vsis3 paths, re-zips it,
+    and returns the modified bytes. If is_qgs is True, processes the raw XML directly.
+    """
+    if is_qgs:
+        return process_qgs_xml(file_data, layers_lookup)
+
+    import tempfile
+    import zipfile
+    import os
+
+    # Write file_data to a temporary file
+    temp_in_fd, temp_in_path = tempfile.mkstemp(suffix=".qgz")
+    temp_out_fd, temp_out_path = tempfile.mkstemp(suffix=".qgz")
+    
+    try:
+        with os.fdopen(temp_in_fd, 'wb') as f:
+            f.write(file_data)
+            
+        # Extract and process zip contents
+        with zipfile.ZipFile(temp_in_path, 'r') as zip_in:
+            with zipfile.ZipFile(temp_out_path, 'w', zipfile.ZIP_DEFLATED) as zip_out:
+                for item in zip_in.infolist():
+                    data = zip_in.read(item.filename)
+                    if item.filename.lower().endswith('.qgs'):
+                        data = process_qgs_xml(data, layers_lookup)
+                            
+                    zip_out.writestr(item.filename, data)
+                    
+        # Read the modified zip file back
+        with open(temp_out_path, 'rb') as f:
+            modified_bytes = f.read()
+            
+        return modified_bytes
+        
+    finally:
+        # Clean up temporary files safely
+        for path in (temp_in_path, temp_out_path):
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception as e:
+                print(f"Error removing temp file {path}: {e}")
+

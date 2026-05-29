@@ -50,14 +50,58 @@ class MapResponse(MapBase):
     created_at: datetime
     updated_at: Optional[datetime] = None
     has_project_file: bool = False
+    qgis_server_wms_url: Optional[str] = None
+    qgis_server_wfs_url: Optional[str] = None
+    qgis_server_wmts_url: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
     @classmethod
     def model_validate(cls, obj: Any, **kwargs) -> "MapResponse":
-        # Override to dynamically calculate has_project_file
+        # Override to dynamically calculate has_project_file and QGIS Server OGC links
         res = super().model_validate(obj, **kwargs)
         res.has_project_file = bool(res.project_file_url)
+        if res.project_file_url:
+            # Dynamically get bucket name from config
+            bucket = "desktop-mobile"
+            try:
+                import os
+                import pathlib
+                import yaml
+                current_file_path = pathlib.Path(__file__).parent.resolve()
+                config_dir = current_file_path.parent / "config"
+                config_files = [config_dir / "config.yml"]
+                env = os.environ.get("MAPA_ENV")
+                if env == "DEVELOPMENT":
+                    config_files.append(config_dir / "config.dev.yml")
+                else:
+                    config_files.append(config_dir / "config.prod.yml")
+                for file_path in config_files:
+                    if file_path.exists():
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            cfg = yaml.safe_load(f)
+                            if cfg and "minio" in cfg and "bucket" in cfg["minio"]:
+                                bucket = cfg["minio"]["bucket"]
+            except Exception:
+                pass
+
+            # If the shared workspace file exists locally, QGIS Server can open it directly as a standard file
+            import os
+            local_qgs_path = f"/workspace/scratch/qgis-projects/{res.id}.qgs"
+            if os.path.exists(local_qgs_path):
+                project_path = local_qgs_path
+            else:
+                # If using the new normalized format, use the stable key, otherwise fall back to historical key
+                if res.project_file_url and "project.qgz" in res.project_file_url:
+                    project_path = f"/vsis3/{bucket}/maps/{res.id}/project.qgs"
+                else:
+                    project_path = f"/vsis3/{bucket}/{res.project_file_url.replace('.qgz', '.qgs')}"
+
+            # Use /ows/ (with a trailing slash) to bypass internal QGIS Server Nginx 404
+            base_ows = f"http://localhost:8091/ows/?MAP={project_path}"
+            res.qgis_server_wms_url = f"{base_ows}&SERVICE=WMS&REQUEST=GetCapabilities"
+            res.qgis_server_wfs_url = f"{base_ows}&SERVICE=WFS&REQUEST=GetCapabilities"
+            res.qgis_server_wmts_url = f"{base_ows}&SERVICE=WMTS&REQUEST=GetCapabilities"
         return res
 
 # --- Layer Schemas ---

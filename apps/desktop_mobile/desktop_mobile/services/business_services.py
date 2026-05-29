@@ -100,13 +100,80 @@ class MapService(BaseEntityService[MapRepository, MapResponse, MapCreate, MapCre
     def __init__(self, async_db: AsyncDatabase, minio_service: MinioService) -> None:
         self.minio_service = minio_service
         super().__init__(async_db, MapRepository, MapResponse)
+        try:
+            self.sync_custom_fonts()
+        except Exception as e:
+            print(f"[MapService] Font synchronization during init failed: {e}")
         
     async def upload_project_file(self, map_id: uuid.UUID, file_name: str, file_data: bytes, tenant_id: str | None = None, user_id: str | None = None) -> MapResponse:
         """Uploads QGIS .qgz project configurations to MinIO and updates the project_file_url."""
-        object_name = f"maps/{map_id}/{uuid.uuid4()}-{file_name}"
+        # Fetch layers under this tenant (or all layers if tenant_id is None) to match basenames for rewrites
+        async with self.repo._db.session() as session:
+            stmt = select(LayerEntity)
+            if tenant_id:
+                stmt = stmt.where(LayerEntity.tenant_id == tenant_id)
+            res = await session.execute(stmt)
+            all_layers = res.scalars().all()
+
+        layers_lookup = {}
+        for layer in all_layers:
+            if layer.url_path:
+                clean_url_path = layer.url_path.split('|')[0]
+                fn = os.path.basename(clean_url_path).lower()
+                layers_lookup[fn] = layer
+
+        is_qgs = file_name.lower().endswith('.qgs')
+        ext = '.qgs' if is_qgs else '.qgz'
+        object_name = f"maps/{map_id}/project{ext}"
+
+        # Process/Rewrite project file
+        try:
+            from desktop_mobile.shared.utils import process_qgz_project
+            file_data = process_qgz_project(file_data, layers_lookup, is_qgs=is_qgs)
+        except Exception as e:
+            print(f"[MapService] Error processing/rewriting project: {e}")
+
+        # Sync custom fonts from MinIO to shared volume
+        self.sync_custom_fonts()
+
+        self.minio_service.put_object(object_name, file_data, content_type="application/xml" if is_qgs else "application/octet-stream")
         
-        self.minio_service.put_object(object_name, file_data, content_type="application/octet-stream")
-        
+        # Upload/save the unzipped .qgs file alongside the .qgz for QGIS Server compatibility
+        if is_qgs:
+            try:
+                import pathlib
+                local_dir = pathlib.Path("/workspace/scratch/qgis-projects")
+                local_dir.mkdir(parents=True, exist_ok=True)
+                local_path = local_dir / f"{map_id}.qgs"
+                with open(local_path, "wb") as lf:
+                    lf.write(file_data)
+                print(f"[MapService] Saved local QGS file to {local_path} for QGIS Server")
+            except Exception as e:
+                print(f"[MapService] Error saving local QGS file: {e}")
+        else:
+            try:
+                import io
+                import zipfile
+                import pathlib
+                with zipfile.ZipFile(io.BytesIO(file_data), 'r') as z:
+                    for name in z.namelist():
+                        if name.lower().endswith('.qgs'):
+                            qgs_data = z.read(name)
+                            qgs_object_name = object_name.replace('.qgz', '.qgs')
+                            # Upload to MinIO
+                            self.minio_service.put_object(qgs_object_name, qgs_data, content_type="application/xml")
+                            
+                            # Write to shared local workspace scratch directory
+                            local_dir = pathlib.Path("/workspace/scratch/qgis-projects")
+                            local_dir.mkdir(parents=True, exist_ok=True)
+                            local_path = local_dir / f"{map_id}.qgs"
+                            with open(local_path, "wb") as lf:
+                                lf.write(qgs_data)
+                            print(f"[MapService] Saved local QGS file to {local_path} for QGIS Server")
+                            break
+            except Exception as e:
+                print(f"[MapService] Error uploading/saving accompanying QGS file: {e}")
+
         async with self.repo._db.session() as session:
             stmt = select(MapEntity).where(MapEntity.id == map_id)
             if tenant_id:
@@ -210,8 +277,55 @@ class MapService(BaseEntityService[MapRepository, MapResponse, MapCreate, MapCre
                 if len(file_data) > 50 * 1024 * 1024:
                     raise ValueError("File too large (max 50MB)")
                 
-                project_file_url = f"maps/{map_id}/{uuid.uuid4()}-{file_name}"
+                # Fetch layers under this tenant (or all layers if tenant_id is None) to match basenames for rewrites
+                stmt = select(LayerEntity)
+                if tenant_id:
+                    stmt = stmt.where(LayerEntity.tenant_id == tenant_id)
+                res = await session.execute(stmt)
+                all_layers = res.scalars().all()
+
+                layers_lookup = {}
+                for layer in all_layers:
+                    if layer.url_path:
+                        clean_url_path = layer.url_path.split('|')[0]
+                        fn = os.path.basename(clean_url_path).lower()
+                        layers_lookup[fn] = layer
+
+                try:
+                    from desktop_mobile.shared.utils import process_qgz_project
+                    file_data = process_qgz_project(file_data, layers_lookup)
+                except Exception as e:
+                    print(f"[MapService] Error processing/rewriting QGZ project: {e}")
+                
+                # Sync custom fonts from MinIO to shared volume
+                self.sync_custom_fonts()
+
+                project_file_url = f"maps/{map_id}/project.qgz"
                 self.minio_service.put_object(project_file_url, file_data, content_type="application/octet-stream")
+
+                # Upload the unzipped .qgs file alongside the .qgz for QGIS Server compatibility
+                try:
+                    import io
+                    import zipfile
+                    import pathlib
+                    with zipfile.ZipFile(io.BytesIO(file_data), 'r') as z:
+                        for name in z.namelist():
+                            if name.lower().endswith('.qgs'):
+                                qgs_data = z.read(name)
+                                qgs_object_name = project_file_url.replace('.qgz', '.qgs')
+                                # Upload to MinIO
+                                self.minio_service.put_object(qgs_object_name, qgs_data, content_type="application/xml")
+                                
+                                # Write to shared local workspace scratch directory
+                                local_dir = pathlib.Path("/workspace/scratch/qgis-projects")
+                                local_dir.mkdir(parents=True, exist_ok=True)
+                                local_path = local_dir / f"{map_id}.qgs"
+                                with open(local_path, "wb") as lf:
+                                    lf.write(qgs_data)
+                                print(f"[MapService] Saved local QGS file in create to {local_path} for QGIS Server")
+                                break
+                except Exception as e:
+                    print(f"[MapService] Error uploading/saving accompanying QGS file in create: {e}")
 
             new_map = MapEntity(
                 id=map_id,
@@ -290,10 +404,9 @@ class MapService(BaseEntityService[MapRepository, MapResponse, MapCreate, MapCre
             map_layer_rel_stmt = delete(map_layer).where(map_layer.c.map_id == map_id)
             await session.execute(map_layer_rel_stmt)
 
-            # 4. Physically delete the QGIS project file from MinIO if it exists
-            if db_map.project_file_url:
-                print(f"[delete_map] Physically deleting QGIS project file from MinIO: {db_map.project_file_url}...")
-                self.minio_service.delete_object(db_map.project_file_url)
+            # 4. Physically delete all QGIS project files (entire maps/{map_id}/ folder) from MinIO
+            print(f"[delete_map] Physically deleting all QGIS project files (prefix maps/{map_id}/) from MinIO...")
+            self.minio_service.delete_prefix(f"maps/{map_id}/")
 
             # 5. Delete exclusive layers and their physical S3 files
             if exclusive_layers:
@@ -443,10 +556,230 @@ class MapService(BaseEntityService[MapRepository, MapResponse, MapCreate, MapCre
             )
             return merged_map
 
+    def sync_custom_fonts(self) -> None:
+        """
+        Synchronizes all custom font files (.ttf, .otf) from MinIO fonts/ prefix to local /workspace/scratch/fonts/.
+        Handles:
+          - Downloading new fonts
+          - Overwriting updated fonts (compares size or content changes)
+          - Deleting local fonts that were removed from S3 (automatic unregistration)
+        """
+        try:
+            import pathlib
+            bucket = "desktop-mobile"
+            prefix = "fonts/"
+            local_dir = pathlib.Path("/workspace/scratch/fonts")
+            local_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 1. Fetch all active custom fonts in S3
+            objects = self.minio_service.list_objects(prefix=prefix, bucket=bucket)
+            s3_fonts = {}
+            for obj in objects:
+                name = obj.object_name
+                if not (name.lower().endswith('.ttf') or name.lower().endswith('.otf')):
+                    continue
+                filename = os.path.basename(name)
+                s3_fonts[filename] = {
+                    "object_name": name,
+                    "size": obj.size
+                }
+            
+            # 2. List all local font files currently in scratch/fonts
+            local_files = {}
+            if local_dir.exists():
+                for entry in os.scandir(local_dir):
+                    if entry.is_file() and (entry.name.lower().endswith('.ttf') or entry.name.lower().endswith('.otf')):
+                        local_files[entry.name] = entry.stat().st_size
+            
+            any_changes = False
+            
+            # 3. Add or Update local fonts from S3
+            for filename, s3_info in s3_fonts.items():
+                local_path = local_dir / filename
+                need_download = False
+                
+                if filename not in local_files:
+                    print(f"[sync_custom_fonts] New font detected in S3: {filename}")
+                    need_download = True
+                elif local_files[filename] != s3_info["size"]:
+                    print(f"[sync_custom_fonts] Font size mismatch for {filename} (local: {local_files[filename]}, S3: {s3_info['size']}). Updating...")
+                    need_download = True
+                
+                if need_download:
+                    try:
+                        data = self.minio_service.get_object(s3_info["object_name"], bucket=bucket)
+                        with open(local_path, "wb") as lf:
+                            lf.write(data)
+                        any_changes = True
+                        print(f"[sync_custom_fonts] Successfully synced font: {filename}")
+                    except Exception as e:
+                        print(f"[sync_custom_fonts] Error downloading font {filename}: {e}")
+            
+            # 4. Clean up / Delete local fonts that are no longer in S3
+            for filename in list(local_files.keys()):
+                if filename not in s3_fonts:
+                    local_path = local_dir / filename
+                    print(f"[sync_custom_fonts] Font removed from S3. Deleting locally: {filename}")
+                    try:
+                        os.remove(local_path)
+                        any_changes = True
+                    except Exception as e:
+                        print(f"[sync_custom_fonts] Error removing local font file {filename}: {e}")
+            
+            if any_changes:
+                print("[sync_custom_fonts] Font directory updated. System font manager list matches S3 perfectly.")
+        except Exception as e:
+            print(f"[sync_custom_fonts] Error during font synchronization: {e}")
+
+    def upload_custom_font(self, filename: str, file_data: bytes) -> str:
+        """Uploads a custom font to MinIO under fonts/ prefix and saves it to local /workspace/scratch/fonts/"""
+        if not (filename.lower().endswith('.ttf') or filename.lower().endswith('.otf')):
+            raise ValueError("Only TTF and OTF font files are allowed")
+
+        import pathlib
+        bucket = "desktop-mobile"
+        object_name = f"fonts/{filename}"
+
+        # 1. Upload to MinIO/S3
+        self.minio_service.put_object(object_name, file_data, content_type="application/x-font-truetype", bucket=bucket)
+
+        # 2. Save locally to shared volume
+        local_dir = pathlib.Path("/workspace/scratch/fonts")
+        local_dir.mkdir(parents=True, exist_ok=True)
+        local_path = local_dir / filename
+        with open(local_path, "wb") as lf:
+            lf.write(file_data)
+        
+        print(f"[upload_custom_font] Saved font {filename} to S3 and locally to {local_path}")
+        return object_name
+
 class LayerService(BaseEntityService[LayerRepository, LayerResponse, LayerCreate, LayerCreate, LayerCreate]):
     def __init__(self, async_db: AsyncDatabase, minio_service: MinioService) -> None:
         self.minio_service = minio_service
         super().__init__(async_db, LayerRepository, LayerResponse)
+
+    def _upload_unzipped_files(self, file_name: str, file_data: bytes, s3_folder: str, bucket: str, url_path: str, layer_type: str):
+        """Helper to unzip dynamically and upload individual files to S3/MinIO based on mismatch rule"""
+        import zipfile
+        import io
+        
+        is_directory_based = ".gdb" in layer_type.lower()
+        folder_name = file_name[:-4] if file_name.lower().endswith(".zip") else file_name  # e.g., sheet_5349_1.gdb
+        
+        try:
+            with zipfile.ZipFile(io.BytesIO(file_data), 'r') as z:
+                for name in z.namelist():
+                    if name.endswith('/'):
+                        continue
+                    content = z.read(name)
+                    
+                    if is_directory_based:
+                        # Directory-based: unzip to folder_name/ subfolder
+                        if name.lower().startswith(folder_name.lower()):
+                            s3_file_path = f"{s3_folder}/{name}"
+                        else:
+                            s3_file_path = f"{s3_folder}/{folder_name}/{name}"
+                    else:
+                        # Flat file-based: unzip directly to s3_folder/
+                        s3_file_path = f"{s3_folder}/{name}"
+                        
+                    self.minio_service.put_object(s3_file_path, content, bucket=bucket)
+            print(f"[LayerService] Successfully unzipped and uploaded {layer_type} {file_name} (directory-based: {is_directory_based}) to prefix {s3_folder}/")
+        except Exception as e:
+            print(f"[LayerService] Error unzipping {file_name}: {e}")
+
+        # Always upload the original zip file too
+        self.minio_service.put_object(url_path, file_data, bucket=bucket)
+
+    async def _rewrite_associated_map_project(self, map_id: uuid.UUID):
+        """
+        Fetches the map's project file (QGS or QGZ) from S3, rewrites its layer paths
+        using all currently registered layers in the database, and uploads it back.
+        Also writes the local unzipped QGS file for QGIS Server compatibility.
+        """
+        if not map_id:
+            return
+            
+        print(f"[LayerService] Re-triggering QGS path rewrite for map ID {map_id}...")
+        try:
+            # 1. Fetch map record first
+            from sqlalchemy import select
+            from desktop_mobile.models.entities import MapEntity, map_layer
+            async with self.repo._db.session() as session:
+                m_stmt = select(MapEntity).where(MapEntity.id == map_id)
+                m_res = await session.execute(m_stmt)
+                db_map = m_res.scalars().first()
+                if not db_map or not db_map.project_file_url:
+                    print(f"[LayerService] Map {map_id} has no project file to rewrite.")
+                    return
+                
+                # Fetch all layers linked to this map
+                l_stmt = select(LayerEntity).join(
+                    map_layer, LayerEntity.id == map_layer.c.layer_id
+                ).where(map_layer.c.map_id == map_id)
+                l_res = await session.execute(l_stmt)
+                all_layers = l_res.scalars().all()
+                
+            if not all_layers:
+                print(f"[LayerService] No layers registered for map {map_id} yet.")
+                return
+                
+            layers_lookup = {}
+            for layer in all_layers:
+                if layer.url_path:
+                    clean_url_path = layer.url_path.split('|')[0]
+                    fn = os.path.basename(clean_url_path).lower()
+                    layers_lookup[fn] = layer
+            
+            project_file_url = db_map.project_file_url
+            clean_project_path = project_file_url.split('|')[0]
+            is_qgs = clean_project_path.lower().endswith('.qgs')
+            final_bucket = "desktop-mobile"
+            
+            # Fetch the original project file from S3
+            file_data = self.minio_service.get_object(clean_project_path, bucket=final_bucket)
+            if not file_data:
+                print(f"[LayerService] Could not retrieve project file '{clean_project_path}' from S3.")
+                return
+                
+            # Run the rewriter
+            from desktop_mobile.shared.utils import process_qgz_project
+            modified_data = process_qgz_project(file_data, layers_lookup, is_qgs=is_qgs)
+            
+            # Upload back to S3
+            self.minio_service.put_object(clean_project_path, modified_data, content_type="application/xml" if is_qgs else "application/octet-stream")
+            print(f"[LayerService] Successfully updated QGZ project on S3 for map {map_id}")
+            
+            # Also save unzipped .qgs file locally/MinIO for QGIS Server
+            import io
+            import zipfile
+            import pathlib
+            
+            qgs_data = None
+            if is_qgs:
+                qgs_data = modified_data
+            else:
+                with zipfile.ZipFile(io.BytesIO(modified_data), 'r') as z:
+                    for name in z.namelist():
+                        if name.lower().endswith('.qgs'):
+                            qgs_data = z.read(name)
+                            break
+                            
+            if qgs_data:
+                # Upload unzipped .qgs to S3 alongside .qgz
+                qgs_object_name = clean_project_path.replace('.qgz', '.qgs')
+                self.minio_service.put_object(qgs_object_name, qgs_data, content_type="application/xml")
+                
+                # Write to shared local workspace scratch directory
+                local_dir = pathlib.Path("/workspace/scratch/qgis-projects")
+                local_dir.mkdir(parents=True, exist_ok=True)
+                local_path = local_dir / f"{map_id}.qgs"
+                with open(local_path, "wb") as lf:
+                    lf.write(qgs_data)
+                print(f"[LayerService] Successfully updated local unzipped QGS file at {local_path}")
+                
+        except Exception as rewrite_err:
+            print(f"[LayerService] Failed to rewrite map project: {rewrite_err}")
 
     async def create_layer(
         self,
@@ -471,7 +804,10 @@ class LayerService(BaseEntityService[LayerRepository, LayerResponse, LayerCreate
             if not file_name.lower().endswith(t_lower):
                 raise ValueError("File format does not match the layer type")
             
-            url_path = f"layers/{layer_id}/{file_name}"
+            if map_id:
+                url_path = f"maps/{map_id}/{file_name}"
+            else:
+                url_path = f"layers/{layer_id}/{file_name}"
             bucket = "desktop-mobile"
 
             if t_lower == ".geojson":
@@ -509,7 +845,12 @@ class LayerService(BaseEntityService[LayerRepository, LayerResponse, LayerCreate
                         os.remove(temp_gpkg_path)
                     shutil.rmtree(temp_dir, ignore_errors=True)
 
-            self.minio_service.put_object(url_path, file_data, bucket=bucket)
+            is_zipped_upload = file_name.lower().endswith(".zip") and layer_data.type.lower() != ".zip"
+            if is_zipped_upload:
+                s3_folder = f"maps/{map_id}" if map_id else f"layers/{layer_id}"
+                self._upload_unzipped_files(file_name, file_data, s3_folder, bucket, url_path, layer_data.type)
+            else:
+                self.minio_service.put_object(url_path, file_data, bucket=bucket)
         elif is_file_based and not file_data:
             file_store_id = None
             if layer_data.route_params:
@@ -536,10 +877,13 @@ class LayerService(BaseEntityService[LayerRepository, LayerResponse, LayerCreate
             
             if not url_path:
                 url_path = layer_data.url_path
-                bucket = layer_data.bucket
+                bucket = layer_data.bucket or "desktop-mobile"
         else:
             url_path = layer_data.url_path
             bucket = layer_data.bucket
+
+        if is_file_based and not bucket:
+            bucket = "desktop-mobile"
 
         async with self.repo._db.session() as session:
             new_layer = LayerEntity(
@@ -570,6 +914,75 @@ class LayerService(BaseEntityService[LayerRepository, LayerResponse, LayerCreate
             
             await session.commit()
             
+        # Post-process unzipping based on the mismatch rule (uploaded zip vs non-zip QGS layer type)
+        clean_url_path = url_path.split('|')[0] if url_path else ""
+        is_zipped_upload = clean_url_path.lower().endswith(".zip") and layer_data.type.lower() != ".zip"
+        if clean_url_path and is_zipped_upload:
+            try:
+                # Extract the s3 folder and name
+                s3_folder = clean_url_path.rsplit('/', 1)[0] if '/' in clean_url_path else f"layers/{layer_id}"
+                s3_file_name = clean_url_path.split("/")[-1]
+                final_bucket = bucket or "desktop-mobile"
+                
+                # Check if this layer is reusing an already existing S3 path from another layer
+                is_reused_path = False
+                if s3_folder.startswith("layers/"):
+                    parts = s3_folder.split("/")
+                    if len(parts) > 1:
+                        try:
+                            path_layer_id = uuid.UUID(parts[1])
+                            if path_layer_id != layer_id:
+                                is_reused_path = True
+                        except ValueError:
+                            pass
+                
+                # 1. Database Check: If any other layer uses the exact same base S3 file, it's already unzipped!
+                if not is_reused_path:
+                    base_path = clean_url_path
+                    async with self.repo._db.session() as session:
+                        stmt = select(LayerEntity).where(
+                            and_(
+                                LayerEntity.url_path.like(f"{base_path}%"),
+                                LayerEntity.id != layer_id
+                            )
+                        )
+                        res = await session.execute(stmt)
+                        if res.first() is not None:
+                            is_reused_path = True
+                
+                # 2. S3 Check: If the destination unzipped folder already has files, skip extraction!
+                if not is_reused_path:
+                    gdb_folder_name = s3_file_name[:-4] if s3_file_name.lower().endswith(".zip") else s3_file_name
+                    is_directory_based = ".gdb" in layer_data.type.lower()
+                    check_prefix = f"{s3_folder}/{gdb_folder_name}/" if is_directory_based else f"{s3_folder}/{gdb_folder_name}"
+                    try:
+                        existing_objects = self.minio_service.list_objects(prefix=check_prefix, bucket=final_bucket)
+                        has_unzipped_files = False
+                        for obj in existing_objects:
+                            if not obj.object_name.endswith(".zip"):
+                                has_unzipped_files = True
+                                break
+                        if has_unzipped_files:
+                            is_reused_path = True
+                            print(f"[LayerService] Found existing unzipped files under prefix '{check_prefix}' in S3. Skipping redundant extraction.")
+                    except Exception as list_err:
+                        print(f"[LayerService] Failed to check existing unzipped files in S3: {list_err}")
+                
+                if is_reused_path:
+                    print(f"[LayerService] Layer {layer_id} is reusing existing unzipped files from {s3_folder}. Skipping redundant S3 extraction.")
+                else:
+                    print(f"[LayerService] Post-processing zipped file '{url_path}' on S3...")
+                    s3_data = self.minio_service.get_object(clean_url_path, bucket=final_bucket)
+                    self._upload_unzipped_files(s3_file_name, s3_data, s3_folder, final_bucket, clean_url_path, layer_data.type)
+            except Exception as e:
+                print(f"[LayerService] Failed to post-process/unzip file on S3 in create: {e}")
+
+        if map_id:
+            try:
+                await self._rewrite_associated_map_project(map_id)
+            except Exception as rewrite_err:
+                print(f"[LayerService] Failed to rewrite map project on layer creation: {rewrite_err}")
+
         return await self.get(layer_id, tenant_id)
 
     async def update_layer(
@@ -686,7 +1099,17 @@ class LayerService(BaseEntityService[LayerRepository, LayerResponse, LayerCreate
                     if not updated_layer.url_path:
                         updated_layer.url_path = f"layers/{layer_id}/{file_name}"
                     
-                    self.minio_service.put_object(updated_layer.url_path, file_data, bucket=updated_layer.bucket)
+                    # Ensure bucket is correctly populated for file layers
+                    if not updated_layer.bucket:
+                        updated_layer.bucket = "desktop-mobile"
+                    
+                    is_zipped_upload = file_name.lower().endswith(".zip") and updated_layer.type.lower() != ".zip"
+                    if is_zipped_upload:
+                        clean_updated_path = updated_layer.url_path.split('|')[0] if updated_layer.url_path else ""
+                        s3_folder = clean_updated_path.rsplit('/', 1)[0] if '/' in clean_updated_path else f"layers/{layer_id}"
+                        self._upload_unzipped_files(file_name, file_data, s3_folder, updated_layer.bucket, updated_layer.url_path, updated_layer.type)
+                    else:
+                        self.minio_service.put_object(updated_layer.url_path, file_data, bucket=updated_layer.bucket)
                     is_data_source_changed = True
 
             update_data = layer_data.model_dump(exclude_unset=True)
@@ -698,6 +1121,9 @@ class LayerService(BaseEntityService[LayerRepository, LayerResponse, LayerCreate
             if layer_data.url_path:
                 if not (t_lower in (".gpkg", ".geojson")):
                     updated_layer.url_path = layer_data.url_path
+                    is_zipped_url = layer_data.url_path.lower().endswith(".zip") and updated_layer.type.lower() != ".zip"
+                    if is_zipped_url:
+                        is_data_source_changed = True
 
             if layer_data.qml_params:
                 if field_changed(normalize_qml(updated_layer.qml_params), normalize_qml(layer_data.qml_params)):
@@ -731,12 +1157,88 @@ class LayerService(BaseEntityService[LayerRepository, LayerResponse, LayerCreate
                     updated_layer.updated_at = now
 
             await session.commit()
-            
-            layer_res = await self.get(layer_id, tenant_id)
-            if conflicts_list and layer_res:
-                layer_res.conflicts_list = conflicts_list
+
+        # Post-process unzipping based on the mismatch rule (uploaded zip vs non-zip QGS layer type)
+        clean_updated_path = updated_layer.url_path.split('|')[0] if updated_layer.url_path else ""
+        is_zipped_upload = clean_updated_path.lower().endswith(".zip") and updated_layer.type.lower() != ".zip"
+        if is_data_source_changed and clean_updated_path and is_zipped_upload:
+            try:
+                # Extract the s3 folder and name
+                s3_folder = clean_updated_path.rsplit('/', 1)[0] if '/' in clean_updated_path else f"layers/{layer_id}"
+                s3_file_name = clean_updated_path.split("/")[-1]
+                final_bucket = updated_layer.bucket or "desktop-mobile"
                 
-            return layer_res
+                # Check if this layer is reusing an already existing S3 path from another layer
+                is_reused_path = False
+                if s3_folder.startswith("layers/"):
+                    parts = s3_folder.split("/")
+                    if len(parts) > 1:
+                        try:
+                            path_layer_id = uuid.UUID(parts[1])
+                            if path_layer_id != layer_id:
+                                is_reused_path = True
+                        except ValueError:
+                            pass
+                
+                # 1. Database Check: If any other layer uses the exact same base S3 file, it's already unzipped!
+                if not is_reused_path:
+                    base_path = clean_updated_path
+                    async with self.repo._db.session() as session:
+                        stmt = select(LayerEntity).where(
+                            and_(
+                                LayerEntity.url_path.like(f"{base_path}%"),
+                                LayerEntity.id != layer_id
+                            )
+                        )
+                        res = await session.execute(stmt)
+                        if res.first() is not None:
+                            is_reused_path = True
+                
+                # 2. S3 Check: If the destination unzipped folder already has files, skip extraction!
+                if not is_reused_path:
+                    gdb_folder_name = s3_file_name[:-4] if s3_file_name.lower().endswith(".zip") else s3_file_name
+                    is_directory_based = ".gdb" in updated_layer.type.lower()
+                    check_prefix = f"{s3_folder}/{gdb_folder_name}/" if is_directory_based else f"{s3_folder}/{gdb_folder_name}"
+                    try:
+                        existing_objects = self.minio_service.list_objects(prefix=check_prefix, bucket=final_bucket)
+                        has_unzipped_files = False
+                        for obj in existing_objects:
+                            if not obj.object_name.endswith(".zip"):
+                                has_unzipped_files = True
+                                break
+                        if has_unzipped_files:
+                            is_reused_path = True
+                            print(f"[LayerService] Found existing unzipped files under prefix '{check_prefix}' in S3. Skipping redundant extraction.")
+                    except Exception as list_err:
+                        print(f"[LayerService] Failed to check existing unzipped files in S3: {list_err}")
+                
+                if is_reused_path:
+                    print(f"[LayerService] Layer {layer_id} is reusing existing unzipped files from {s3_folder}. Skipping redundant S3 extraction.")
+                else:
+                    print(f"[LayerService] Post-processing updated zipped file '{updated_layer.url_path}' on S3...")
+                    s3_data = self.minio_service.get_object(clean_updated_path, bucket=final_bucket)
+                    self._upload_unzipped_files(s3_file_name, s3_data, s3_folder, final_bucket, clean_updated_path, updated_layer.type)
+            except Exception as e:
+                print(f"[LayerService] Failed to post-process/unzip file on S3 in update: {e}")
+            
+        # Trigger re-writing QGS project for all maps associated with this layer
+        try:
+            from desktop_mobile.models.entities import map_layer
+            async with self.repo._db.session() as session:
+                map_stmt = select(map_layer.c.map_id).where(map_layer.c.layer_id == layer_id)
+                map_res = await session.execute(map_stmt)
+                map_ids = [row[0] for row in map_res.fetchall()]
+            
+            for m_id in map_ids:
+                await self._rewrite_associated_map_project(m_id)
+        except Exception as rewrite_err:
+            print(f"[LayerService] Failed to rewrite map projects on layer update: {rewrite_err}")
+
+        layer_res = await self.get(layer_id, tenant_id)
+        if conflicts_list and layer_res:
+            layer_res.conflicts_list = conflicts_list
+            
+        return layer_res
 
     async def delete_layer(self, layer_id: uuid.UUID, tenant_id: str | None = None) -> bool:
         async with self.repo._db.session() as session:

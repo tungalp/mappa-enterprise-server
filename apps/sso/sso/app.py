@@ -1,6 +1,6 @@
 import pathlib
 import sso
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from starlette.middleware import Middleware
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.cors import CORSMiddleware
@@ -92,6 +92,23 @@ def create_application():
     application = FastAPI(**app_props, middleware=middleware, redirect_slashes=False)
     application.container = container  # type: ignore
     application.apm_client = apm  # type: ignore
+    
+    @application.middleware("http")
+    async def set_dynamic_issuer(request: Request, call_next):
+        forwarded_host = request.headers.get("x-forwarded-host")
+        forwarded_proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+        if forwarded_host:
+            host_url = f"{forwarded_proto}://{forwarded_host}"
+        else:
+            host_url = f"{request.url.scheme}://{request.url.netloc}"
+            
+        from mapa.sso.oidc.token_service import request_issuer
+        token = request_issuer.set(host_url)
+        try:
+            response = await call_next(request)
+            return response
+        finally:
+            request_issuer.reset(token)
     
     @application.on_event("shutdown")
     def application_shutdown():

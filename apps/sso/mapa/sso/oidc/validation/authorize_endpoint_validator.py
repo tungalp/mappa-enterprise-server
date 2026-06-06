@@ -95,7 +95,30 @@ class AuthorizeEndPointValidator:
 
         # RedirectUri
         redirect_uri = authorize_endpoint.redirect_uri
-        if not redirect_uri or (redirect_uri and client["redirect_uris"] and not redirect_uri in client["redirect_uris"]):
+        is_allowed = False
+        if redirect_uri:
+            if client["redirect_uris"] and redirect_uri in client["redirect_uris"]:
+                is_allowed = True
+            else:
+                from urllib.parse import urlparse
+                import re
+                parsed_uri = urlparse(redirect_uri)
+                hostname = parsed_uri.hostname
+                port = parsed_uri.port
+                path = parsed_uri.path
+                
+                is_local_host = hostname in ['localhost', '127.0.0.1']
+                is_private_ip = False
+                if hostname:
+                    # Match private IP ranges: 192.168.x.x, 10.x.x.x, 172.16.x.x-172.31.x.x
+                    private_ip_pattern = r'^(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$'
+                    is_private_ip = bool(re.match(private_ip_pattern, hostname))
+                
+                if (is_local_host or is_private_ip) and path and (path.endswith('/callback') or path.endswith('/callback_silent')):
+                    if port in [33000, 33001, 33002, 33003, 30003, 8787]:
+                        is_allowed = True
+
+        if not redirect_uri or not is_allowed:
             return ValidationResult(None, error=InvalidRequestError(error_description=AuthorizeErrors.INVALID_REDIRECT_URI))
 
         # Resources

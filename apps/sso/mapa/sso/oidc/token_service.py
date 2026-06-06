@@ -6,6 +6,9 @@ from typing import Any, Dict, List
 from uuid import UUID, uuid4
 from pydantic import BaseModel
 import gzip
+from contextvars import ContextVar
+
+request_issuer: ContextVar[str] = ContextVar("request_issuer", default=None)
 
 from mapa.core.data.base_service import BaseService
 from mapa.sso.models import User
@@ -45,7 +48,7 @@ class TokenService(BaseService):
         """AccessToken"""
         now = datetime.now() - timedelta(seconds=1)
         payload = {
-            "iss": self._issuer,
+            "iss": request_issuer.get() or self._issuer,
             "sub": str(create_token.user_id),
             "aud": create_token.audience,
             "iat": now.timestamp(),
@@ -76,7 +79,7 @@ class TokenService(BaseService):
         """AccessToken"""
         now = datetime.now() - timedelta(seconds=1)
         payload = {
-            "iss": self._issuer,
+            "iss": request_issuer.get() or self._issuer,
             "sub": str(create_token.client_id),
             "iat": now.timestamp(),
             "nbf": (now - timedelta(seconds=1)).timestamp(),
@@ -108,7 +111,7 @@ class TokenService(BaseService):
 
         now = datetime.now() - timedelta(seconds=1)
         payload = {
-            "iss": self._issuer,
+            "iss": request_issuer.get() or self._issuer,
             "sub": str(create_token.user_id),
             "aud": create_token.client_id,
             "iat": now.timestamp(),
@@ -142,7 +145,7 @@ class TokenService(BaseService):
             raise ValueError(f"JWT not found. kid = {kid}")
         public_key = jwk_model.public_pem
         return jwt.decode(
-            token, public_key, algorithms=["RS256"], options=options, issuer=self._issuer)
+            token, public_key, algorithms=["RS256"], options=options, issuer=request_issuer.get() or self._issuer)
 
     async def get_active_jwk_set(self) -> List[JwkModel]:
         if not self._active_jwk_set or self._active_jwk_set[0].expired_at < datetime.now():

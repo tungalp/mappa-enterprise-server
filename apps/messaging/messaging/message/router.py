@@ -6,6 +6,7 @@ from messaging.config.app_container import MessagingContainer
 from messaging.message.model import Message
 from messaging.message.service import MessageService
 from messaging.message.minio_service import MinioService
+from mapa.security.authentication_backend import parse_token_user_and_tenant
 import uuid
 
 router = APIRouter()
@@ -19,25 +20,7 @@ async def get_room_messages(
     limit: int = Query(50, le=100),
     message_service: MessageService = Depends(Provide[MessagingContainer.message_package.message_service])
 ):
-    user = getattr(request.state, "user", None)
-    user_id = None
-    tenant_id = None
-    
-    if user and hasattr(user, "id"):
-        user_id = user.id
-        tenant_id = getattr(user, "tenant_id", None)
-    else:
-        # Fallback: Manually parse JWT if AuthenticationMiddleware failed to verify
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            import jwt
-            try:
-                token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, options={"verify_signature": False})
-                user_id = payload.get("sub")
-                tenant_id = payload.get("tenant_id")
-            except Exception:
-                pass
+    _, tenant_id = parse_token_user_and_tenant(request)
 
     return await message_service.get_room_history(room_id, before, limit, tenant_id)
 
@@ -50,25 +33,7 @@ async def get_dm_messages(
     limit: int = Query(50, le=100),
     message_service: MessageService = Depends(Provide[MessagingContainer.message_package.message_service])
 ):
-    user = getattr(request.state, "user", None)
-    user_id = None
-    tenant_id = None
-    
-    if user and hasattr(user, "id"):
-        user_id = user.id
-        tenant_id = getattr(user, "tenant_id", None)
-    else:
-        # Fallback: Manually parse JWT if AuthenticationMiddleware failed to verify
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            import jwt
-            try:
-                token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, options={"verify_signature": False})
-                user_id = payload.get("sub")
-                tenant_id = payload.get("tenant_id")
-            except Exception:
-                pass
+    user_id, tenant_id = parse_token_user_and_tenant(request)
 
     if user_id:
         return await message_service.get_dm_history(UUID(str(user_id)), other_user_id, before, limit, tenant_id)
@@ -82,8 +47,7 @@ async def mark_read(
     message_id: UUID,
     message_service: MessageService = Depends(Provide[MessagingContainer.message_package.message_service])
 ):
-    tenant_id = request.state.user.tenant_id if hasattr(request.state, "user") else None
-    user_id = request.state.user.id if hasattr(request.state, "user") else None
+    user_id, tenant_id = parse_token_user_and_tenant(request)
     
     if user_id:
         await message_service.mark_as_read(message_id, UUID(user_id), tenant_id)
@@ -116,25 +80,7 @@ async def delete_dm_history(
     other_user_id: UUID,
     message_service: MessageService = Depends(Provide[MessagingContainer.message_package.message_service])
 ):
-    user = getattr(request.state, "user", None)
-    user_id = None
-    tenant_id = None
-    
-    if user and hasattr(user, "id"):
-        user_id = user.id
-        tenant_id = getattr(user, "tenant_id", None)
-    else:
-        # Fallback: Manually parse JWT if AuthenticationMiddleware failed to verify
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            import jwt
-            try:
-                token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, options={"verify_signature": False})
-                user_id = payload.get("sub")
-                tenant_id = payload.get("tenant_id")
-            except Exception:
-                pass
+    user_id, tenant_id = parse_token_user_and_tenant(request)
 
     if not user_id:
         from fastapi import HTTPException
@@ -150,25 +96,7 @@ async def delete_message(
     message_id: UUID,
     message_service: MessageService = Depends(Provide[MessagingContainer.message_package.message_service])
 ):
-    user = getattr(request.state, "user", None)
-    user_id = None
-    tenant_id = None
-    
-    if user and hasattr(user, "id"):
-        user_id = user.id
-        tenant_id = getattr(user, "tenant_id", None)
-    else:
-        # Fallback: Manually parse JWT if AuthenticationMiddleware failed to verify
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            import jwt
-            try:
-                token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, options={"verify_signature": False})
-                user_id = payload.get("sub")
-                tenant_id = payload.get("tenant_id")
-            except Exception:
-                pass
+    user_id, tenant_id = parse_token_user_and_tenant(request)
 
     if not user_id:
         from fastapi import HTTPException
@@ -176,3 +104,4 @@ async def delete_message(
     
     await message_service.delete_message(message_id, UUID(str(user_id)), tenant_id)
     return {"success": True}
+

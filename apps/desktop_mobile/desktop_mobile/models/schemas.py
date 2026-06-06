@@ -53,6 +53,7 @@ class MapResponse(MapBase):
     qgis_server_wms_url: Optional[str] = None
     qgis_server_wfs_url: Optional[str] = None
     qgis_server_wmts_url: Optional[str] = None
+    initial_bounds: Optional[List[float]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -146,7 +147,7 @@ class LayerResponse(LayerBase):
         return res
 
 class MergedLayerResponse(LayerResponse):
-    pass
+    group: Optional[str] = None
 
 class MergedMapResponse(MapResponse):
     collections: List[CollectionResponse] = []

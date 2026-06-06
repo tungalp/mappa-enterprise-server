@@ -5,6 +5,7 @@ from dependency_injector.wiring import inject, Provide
 from messaging.config.app_container import MessagingContainer
 from messaging.room.model import Room, CreateRoom, UpdateRoom, AddRoomUser
 from messaging.room.service import RoomService
+from mapa.security.authentication_backend import parse_token_user_and_tenant
 
 router = APIRouter()
 
@@ -14,25 +15,7 @@ async def get_rooms(
     request: Request,
     room_service: RoomService = Depends(Provide[MessagingContainer.room_package.room_service])
 ):
-    user = getattr(request.state, "user", None)
-    user_id = None
-    tenant_id = None
-    
-    if user and hasattr(user, "id"):
-        user_id = user.id
-        tenant_id = getattr(user, "tenant_id", None)
-    else:
-        # Fallback: Manually parse JWT if AuthenticationMiddleware failed to verify
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            import jwt
-            try:
-                token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, options={"verify_signature": False})
-                user_id = payload.get("sub")
-                tenant_id = payload.get("tenant_id")
-            except Exception:
-                pass
+    user_id, tenant_id = parse_token_user_and_tenant(request)
 
     if user_id:
         return await room_service.get_user_rooms(UUID(str(user_id)), tenant_id)
@@ -45,24 +28,7 @@ async def create_room(
     input_obj: CreateRoom,
     room_service: RoomService = Depends(Provide[MessagingContainer.room_package.room_service])
 ):
-    user = getattr(request.state, "user", None)
-    user_id = None
-    tenant_id = None
-    
-    if user and hasattr(user, "id"):
-        user_id = user.id
-        tenant_id = getattr(user, "tenant_id", None)
-    else:
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            import jwt
-            try:
-                token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, options={"verify_signature": False})
-                user_id = payload.get("sub")
-                tenant_id = payload.get("tenant_id")
-            except Exception:
-                pass
+    user_id, tenant_id = parse_token_user_and_tenant(request)
     
     room = await room_service.create(input_obj, tenant_id, user_id)
     
@@ -80,19 +46,7 @@ async def add_member(
     input_obj: AddRoomUser,
     room_service: RoomService = Depends(Provide[MessagingContainer.room_package.room_service])
 ):
-    user = getattr(request.state, "user", None)
-    tenant_id = getattr(user, "tenant_id", None)
-    
-    if not user:
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            import jwt
-            try:
-                token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, options={"verify_signature": False})
-                tenant_id = payload.get("tenant_id")
-            except Exception:
-                pass
+    _, tenant_id = parse_token_user_and_tenant(request)
                 
     return await room_service.add_user(room_id, input_obj.user_id, tenant_id)
 
@@ -104,19 +58,7 @@ async def remove_member(
     user_id: UUID,
     room_service: RoomService = Depends(Provide[MessagingContainer.room_package.room_service])
 ):
-    user = getattr(request.state, "user", None)
-    tenant_id = getattr(user, "tenant_id", None)
-    
-    if not user:
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            import jwt
-            try:
-                token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, options={"verify_signature": False})
-                tenant_id = payload.get("tenant_id")
-            except Exception:
-                pass
+    _, tenant_id = parse_token_user_and_tenant(request)
 
     success = await room_service.remove_user(room_id, user_id, tenant_id)
     if not success:
@@ -131,19 +73,7 @@ async def delete_room(
     room_id: UUID,
     room_service: RoomService = Depends(Provide[MessagingContainer.room_package.room_service])
 ):
-    user = getattr(request.state, "user", None)
-    tenant_id = getattr(user, "tenant_id", None)
-    
-    if not user:
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            import jwt
-            try:
-                token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, options={"verify_signature": False})
-                tenant_id = payload.get("tenant_id")
-            except Exception:
-                pass
+    _, tenant_id = parse_token_user_and_tenant(request)
 
     success = await room_service.delete_room(room_id, tenant_id)
     if not success:
@@ -158,22 +88,11 @@ async def delete_room_history(
     room_id: UUID,
     room_service: RoomService = Depends(Provide[MessagingContainer.room_package.room_service])
 ):
-    user = getattr(request.state, "user", None)
-    tenant_id = getattr(user, "tenant_id", None)
-    
-    if not user:
-        auth_header = request.headers.get("authorization")
-        if auth_header and auth_header.startswith("Bearer "):
-            import jwt
-            try:
-                token = auth_header.split(" ")[1]
-                payload = jwt.decode(token, options={"verify_signature": False})
-                tenant_id = payload.get("tenant_id")
-            except Exception:
-                pass
+    _, tenant_id = parse_token_user_and_tenant(request)
 
     success = await room_service.clear_room_history(room_id, tenant_id)
     if not success:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Room history could not be cleared")
     return {"success": True}
+

@@ -204,7 +204,7 @@ def check_permission(action: ResourceAccess, resource: ResourceType) -> Callable
     Factory dependency verifying cascading authorization across GIS resources.
     Looks up specific permissions on Collection, Map, or Layer or checks for global admin keys.
     """
-    def permission_checker(
+    async def permission_checker(
         target_id: Optional[uuid.UUID] = None,
         collection_id: Optional[uuid.UUID] = None,
         map_id: Optional[uuid.UUID] = None,
@@ -212,109 +212,105 @@ def check_permission(action: ResourceAccess, resource: ResourceType) -> Callable
         verified_principal: UserPrincipal = Depends(get_verified_token_principal),
         db: AsyncSession = Depends(get_db_session)
     ):
-        async def check_async_permission():
-            actual_target_id = determine_target_id(
-                target_id=target_id,
-                collection_id=collection_id,
-                map_id=map_id, 
-                layer_id=layer_id,
-                resource=resource
-            )
+        actual_target_id = determine_target_id(
+            target_id=target_id,
+            collection_id=collection_id,
+            map_id=map_id, 
+            layer_id=layer_id,
+            resource=resource
+        )
 
-            # Define Required Access Levels
-            action_list = [action.value]
-            if action.value == ResourceAccess.USER.value:
-                action_list.append(ResourceAccess.ADMIN.value)
+        # Define Required Access Levels
+        action_list = [action.value]
+        if action.value == ResourceAccess.USER.value:
+            action_list.append(ResourceAccess.ADMIN.value)
+        
+        permission_filter = None
+        
+        # Build Cascade Permission Filter
+        if resource == ResourceType.COLLECTION and actual_target_id:
+            # Find Collection existence
+            c_stmt = select(CollectionEntity.id).where(CollectionEntity.id == actual_target_id)
+            res = await db.execute(c_stmt)
+            if not res.scalars().first():
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found.")
+
+            permission_filter = or_(
+                ApiKeyPermissionEntity.target_collection_id == actual_target_id
+            )
             
-            permission_filter = None
+        elif resource == ResourceType.MAP and actual_target_id:
+            # Find Map existence
+            m_stmt = select(MapEntity.id).where(MapEntity.id == actual_target_id)
+            res = await db.execute(m_stmt)
+            if not res.scalars().first():
+                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Map not found.")
+
+            # Find Parent Collection ID for cascading access
+            col_stmt = select(collection_map.c.collection_id).where(
+                collection_map.c.map_id == actual_target_id
+            )
+            res = await db.execute(col_stmt)
+            parent_collection_id = res.scalars().first()
             
-            # Build Cascade Permission Filter
-            if resource == ResourceType.COLLECTION and actual_target_id:
-                # Find Collection existence
-                c_stmt = select(CollectionEntity.id).where(CollectionEntity.id == actual_target_id)
-                res = await db.execute(c_stmt)
-                if not res.scalars().first():
-                    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection not found.")
-
-                permission_filter = or_(
-                    ApiKeyPermissionEntity.target_collection_id == actual_target_id
-                )
-                
-            elif resource == ResourceType.MAP and actual_target_id:
-                # Find Map existence
-                m_stmt = select(MapEntity.id).where(MapEntity.id == actual_target_id)
-                res = await db.execute(m_stmt)
-                if not res.scalars().first():
-                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Map not found.")
-
-                # Find Parent Collection ID for cascading access
-                col_stmt = select(collection_map.c.collection_id).where(
-                    collection_map.c.map_id == actual_target_id
-                )
-                res = await db.execute(col_stmt)
-                parent_collection_id = res.scalars().first()
-                
-                permission_filter = or_(
-                    ApiKeyPermissionEntity.target_map_id == actual_target_id
-                )
-                if parent_collection_id:
-                    permission_filter = or_(
-                        permission_filter,
-                        ApiKeyPermissionEntity.target_collection_id == parent_collection_id
-                    )
-
-            elif resource == ResourceType.LAYER and actual_target_id:
-                # Find Layer existence
-                l_stmt = select(LayerEntity.id).where(LayerEntity.id == actual_target_id)
-                res = await db.execute(l_stmt)
-                if not res.scalars().first():
-                     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Layer not found.")
-                
-                # Find Parent Map ID
-                map_stmt = select(map_layer.c.map_id).where(
-                    map_layer.c.layer_id == actual_target_id
-                )
-                res = await db.execute(map_stmt)
-                parent_map_id = res.scalars().first()
-                
-                permission_filter = or_(
-                    ApiKeyPermissionEntity.target_layer_id == actual_target_id
-                )
-                if parent_map_id:
-                    permission_filter = or_(
-                        permission_filter,
-                        ApiKeyPermissionEntity.target_map_id == parent_map_id
-                    )
-
-            # Global Permission filter (targets are NULL means global access)
-            global_filter = and_(
-                ApiKeyPermissionEntity.target_collection_id.is_(None),
-                ApiKeyPermissionEntity.target_map_id.is_(None),
-                ApiKeyPermissionEntity.target_layer_id.is_(None)
+            permission_filter = or_(
+                ApiKeyPermissionEntity.target_map_id == actual_target_id
             )
-
-            if permission_filter is None:
-                permission_filter = global_filter
-            else:
-                permission_filter = or_(permission_filter, global_filter)
-
-            # Query DB for matching permission
-            perm_stmt = select(ApiKeyPermissionEntity).where(
-                ApiKeyPermissionEntity.apikey_id == verified_principal.id,
-                permission_filter,
-                ApiKeyPermissionEntity.access_level.in_(action_list)
-            )
-            perm_res = await db.execute(perm_stmt)
-            has_permission = perm_res.scalars().first()
-
-            if not has_permission:
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail=f"API Key lacks required '{action.value}' permission for resource type '{resource.value}:{actual_target_id}'."
+            if parent_collection_id:
+                permission_filter = or_(
+                    permission_filter,
+                    ApiKeyPermissionEntity.target_collection_id == parent_collection_id
                 )
-            return verified_principal
 
-        # Since it is a FastAPI sync checker returning a coroutine, we can return the result
-        return check_async_permission()
+        elif resource == ResourceType.LAYER and actual_target_id:
+            # Find Layer existence
+            l_stmt = select(LayerEntity.id).where(LayerEntity.id == actual_target_id)
+            res = await db.execute(l_stmt)
+            if not res.scalars().first():
+                 raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Layer not found.")
+            
+            # Find Parent Map ID
+            map_stmt = select(map_layer.c.map_id).where(
+                map_layer.c.layer_id == actual_target_id
+            )
+            res = await db.execute(map_stmt)
+            parent_map_id = res.scalars().first()
+            
+            permission_filter = or_(
+                ApiKeyPermissionEntity.target_layer_id == actual_target_id
+            )
+            if parent_map_id:
+                permission_filter = or_(
+                    permission_filter,
+                    ApiKeyPermissionEntity.target_map_id == parent_map_id
+                )
+
+        # Global Permission filter (targets are NULL means global access)
+        global_filter = and_(
+            ApiKeyPermissionEntity.target_collection_id.is_(None),
+            ApiKeyPermissionEntity.target_map_id.is_(None),
+            ApiKeyPermissionEntity.target_layer_id.is_(None)
+        )
+
+        if permission_filter is None:
+            permission_filter = global_filter
+        else:
+            permission_filter = or_(permission_filter, global_filter)
+
+        # Query DB for matching permission
+        perm_stmt = select(ApiKeyPermissionEntity).where(
+            ApiKeyPermissionEntity.apikey_id == verified_principal.id,
+            permission_filter,
+            ApiKeyPermissionEntity.access_level.in_(action_list)
+        )
+        perm_res = await db.execute(perm_stmt)
+        has_permission = perm_res.scalars().first()
+
+        if not has_permission:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"API Key lacks required '{action.value}' permission for resource type '{resource.value}:{actual_target_id}'."
+            )
+        return verified_principal
 
     return permission_checker

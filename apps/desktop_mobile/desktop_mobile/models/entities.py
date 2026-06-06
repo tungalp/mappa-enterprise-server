@@ -56,6 +56,9 @@ class MapEntity(EntityMixin, TenantMixin, Base):
     updated_at = Column(DateTime, onupdate=func.now())
     
     web_map_id = Column(Uuid(), nullable=True)  # References standard MAPA Map if linked
+    initial_bounds = Column(JSON, nullable=True)
+    layer_groups = Column(JSON, nullable=True)
+    
     
     # Relationships
     collections = relationship("CollectionEntity", secondary=collection_map, back_populates="maps")

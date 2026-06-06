@@ -47,7 +47,9 @@ async def authorize_post(
         authorize_endpoint = AuthorizeEndpoint(**vars(await request.form())["_dict"])
         session_id = request.session.get("id")
         session_uuid = UUID(session_id) if session_id else None
-        ret_val = await authorize(config["oidc"]["app_host"], authorize_endpoint, session_uuid, oidc_service)
+        from mapa.sso.oidc.token_service import request_issuer
+        app_host = request_issuer.get() or config["oidc"]["app_host"]
+        ret_val = await authorize(app_host, authorize_endpoint, session_uuid, oidc_service)
     except Exception as ex:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(ex)) from ex
@@ -70,7 +72,9 @@ async def authorize_get(
     try:
         session_id = request.session.get("id")
         session_uuid = UUID(session_id) if session_id else None
-        ret_val = await authorize(config["oidc"]["app_host"], authorize_endpoint, session_uuid, oidc_service)
+        from mapa.sso.oidc.token_service import request_issuer
+        app_host = request_issuer.get() or config["oidc"]["app_host"]
+        ret_val = await authorize(app_host, authorize_endpoint, session_uuid, oidc_service)
     except Exception as ex:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=str(ex)) from ex
@@ -243,15 +247,16 @@ async def jwks_json(
 @router.get("/.well-known/openid-configuration")
 @inject
 async def get_oidc_config(
-    # request: Request,
+    request: Request,
     config: Any = Depends(Provide[AppContainer.config])
 ):
     """OIDC Well Known Configuration"""
     try:
         oidc_config = config["oidc"]
-        issuer: str = oidc_config["issuer"]
+        from mapa.sso.oidc.token_service import request_issuer
+        issuer = request_issuer.get() or oidc_config["issuer"]
         ret_val = {
-            "issuer": oidc_config["issuer"],
+            "issuer": issuer,
             "authorization_endpoint": issuer + "/" + ProtocolRoutePaths.AUTHORIZE,
             "device_authorization_endpoint": issuer + "/" + ProtocolRoutePaths.DEVICE_AUTHORIZATION,
             "token_endpoint": issuer + "/" + ProtocolRoutePaths.TOKEN,

@@ -174,6 +174,27 @@ class MapService(BaseEntityService[MapRepository, MapResponse, MapCreate, MapCre
             except Exception as e:
                 print(f"[MapService] Error uploading/saving accompanying QGS file: {e}")
 
+        # Extract bounds and layer groups
+        bounds = None
+        layer_groups = None
+        try:
+            from desktop_mobile.shared.utils import extract_and_convert_extent, extract_layer_groups
+            if is_qgs:
+                bounds = extract_and_convert_extent(file_data)
+                layer_groups = extract_layer_groups(file_data, layers_lookup)
+            else:
+                import io
+                import zipfile
+                with zipfile.ZipFile(io.BytesIO(file_data), 'r') as z:
+                    for name in z.namelist():
+                        if name.lower().endswith('.qgs'):
+                            qgs_data = z.read(name)
+                            bounds = extract_and_convert_extent(qgs_data)
+                            layer_groups = extract_layer_groups(qgs_data, layers_lookup)
+                            break
+        except Exception as bounds_err:
+            print(f"[MapService] Error extracting project attributes on upload: {bounds_err}")
+
         async with self.repo._db.session() as session:
             stmt = select(MapEntity).where(MapEntity.id == map_id)
             if tenant_id:
@@ -188,6 +209,10 @@ class MapService(BaseEntityService[MapRepository, MapResponse, MapCreate, MapCre
                 self.minio_service.delete_object(db_map.project_file_url)
                 
             db_map.project_file_url = object_name
+            if bounds:
+                db_map.initial_bounds = bounds
+            if layer_groups is not None:
+                db_map.layer_groups = layer_groups
             db_map.updater = user_id or "system"
             db_map.updated_at = datetime.now()
             await session.commit()
@@ -271,6 +296,8 @@ class MapService(BaseEntityService[MapRepository, MapResponse, MapCreate, MapCre
                 raise ValueError(f"Duplicate map name '{map_data.name}' in collection ID {collection_id}.")
             
             project_file_url = None
+            bounds = None
+            layer_groups = None
             if file_data and file_name:
                 if not file_name.lower().endswith('.qgz'):
                     raise ValueError("Only QGZ files allowed")
@@ -323,6 +350,14 @@ class MapService(BaseEntityService[MapRepository, MapResponse, MapCreate, MapCre
                                 with open(local_path, "wb") as lf:
                                     lf.write(qgs_data)
                                 print(f"[MapService] Saved local QGS file in create to {local_path} for QGIS Server")
+                                
+                                # Extract bounds and layer groups
+                                try:
+                                    from desktop_mobile.shared.utils import extract_and_convert_extent, extract_layer_groups
+                                    bounds = extract_and_convert_extent(qgs_data)
+                                    layer_groups = extract_layer_groups(qgs_data, layers_lookup)
+                                except Exception as err:
+                                    print(f"[MapService] Error extracting project attributes on create: {err}")
                                 break
                 except Exception as e:
                     print(f"[MapService] Error uploading/saving accompanying QGS file in create: {e}")
@@ -333,6 +368,8 @@ class MapService(BaseEntityService[MapRepository, MapResponse, MapCreate, MapCre
                 description=map_data.description,
                 web_map_id=map_data.web_map_id,
                 project_file_url=project_file_url,
+                initial_bounds=bounds,
+                layer_groups=layer_groups,
                 creator=creator_id,
                 updater=creator_id,
                 created_at=now,
@@ -548,11 +585,19 @@ class MapService(BaseEntityService[MapRepository, MapResponse, MapCreate, MapCre
             l_res = await session.execute(l_stmt)
             layers = l_res.scalars().all()
 
+            layer_groups = getattr(map_obj, 'layer_groups', None) or {}
+
+            merged_layers = []
+            for l in layers:
+                res = MergedLayerResponse.model_validate(l)
+                res.group = layer_groups.get(str(l.id))
+                merged_layers.append(res)
+
             map_response = MapResponse.model_validate(map_obj)
             merged_map = MergedMapResponse(
                 **map_response.model_dump(),
                 collections=[CollectionResponse.model_validate(c) for c in collections],
-                layers=[MergedLayerResponse.model_validate(l) for l in layers]
+                layers=merged_layers
             )
             return merged_map
 
@@ -777,6 +822,21 @@ class LayerService(BaseEntityService[LayerRepository, LayerResponse, LayerCreate
                 with open(local_path, "wb") as lf:
                     lf.write(qgs_data)
                 print(f"[LayerService] Successfully updated local unzipped QGS file at {local_path}")
+                
+                # Parse project extent and save to database
+                from desktop_mobile.shared.utils import extract_and_convert_extent
+                bounds = extract_and_convert_extent(qgs_data)
+                if bounds:
+                    print(f"[LayerService] Extracted project extent bounds: {bounds}. Saving to map database...")
+                    async with self.repo._db.session() as session:
+                        # Re-fetch map to update inside session
+                        m_stmt = select(MapEntity).where(MapEntity.id == map_id)
+                        m_res = await session.execute(m_stmt)
+                        session_map = m_res.scalars().first()
+                        if session_map:
+                            session_map.initial_bounds = bounds
+                            await session.commit()
+                            print(f"[LayerService] Successfully saved initial_bounds to Map {map_id}")
                 
         except Exception as rewrite_err:
             print(f"[LayerService] Failed to rewrite map project: {rewrite_err}")

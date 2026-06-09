@@ -95,18 +95,20 @@ def create_application():
     sanitize_list = [item.strip() for item in sanitize_raw.split(",") if item.strip()]
     ignore_urls = ["/health*"]
     # Elastic-apm
-    apm = make_apm_client(
-        {
-            "SERVICE_NAME": container.config.apm.service_name(),
-            "SECRET_TOKEN": container.config.apm.secret_token(),
-            "SERVER_URL": container.config.apm.server_url(),
-            "ENVIRONMENT": container.config.apm.environment(),
-            "CAPTURE_BODY": container.config.apm.body(),
-            "LOG_LEVEL": container.config.apm.log_level(),
-            "SANITIZE_FIELD_NAMES": sanitize_list,
-            "TRANSACTION_IGNORE_URLS": ignore_urls,
-        }
-    )
+    apm = None
+    if os.environ.get("MAPA_ENV") == "PRODUCTION":
+        apm = make_apm_client(
+            {
+                "SERVICE_NAME": container.config.apm.service_name(),
+                "SECRET_TOKEN": container.config.apm.secret_token(),
+                "SERVER_URL": container.config.apm.server_url(),
+                "ENVIRONMENT": container.config.apm.environment(),
+                "CAPTURE_BODY": container.config.apm.body(),
+                "LOG_LEVEL": container.config.apm.log_level(),
+                "SANITIZE_FIELD_NAMES": sanitize_list,
+                "TRANSACTION_IGNORE_URLS": ignore_urls,
+            }
+        )
 
     middleware = [
         Middleware(
@@ -136,7 +138,8 @@ def create_application():
         **app_props, middleware=middleware, redirect_slashes=False, lifespan=lifespan
     )
     application.container = container  # type: ignore
-    application.apm_client = apm  # type: ignore
+    if apm is not None:
+        application.apm_client = apm  # type: ignore
     # Routes
     application.include_router(root_router, prefix="", tags=["root"])
 

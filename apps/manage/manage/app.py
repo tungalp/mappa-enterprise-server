@@ -133,19 +133,26 @@ def create_application():
     sanitize_raw = container.config.apm.sanitize_field_names()
     sanitize_list = [item.strip() for item in sanitize_raw.split(",") if item.strip()]
     ignore_urls = ["/health*"]
-    # Elastic-apm
-    apm = make_apm_client(
-        {
-            "SERVICE_NAME": container.config.apm.service_name(),
-            "SECRET_TOKEN": container.config.apm.secret_token(),
-            "SERVER_URL": container.config.apm.server_url(),
-            "ENVIRONMENT": container.config.apm.environment(),
-            "CAPTURE_BODY": container.config.apm.body(),
-            "LOG_LEVEL": container.config.apm.log_level(),
-            "SANITIZE_FIELD_NAMES": sanitize_list,
-            "TRANSACTION_IGNORE_URLS": ignore_urls
-        }
-    )
+
+    # Elastic APM — only initialize if running in PRODUCTION.
+    # In dev mode the APM server (host.docker.internal:8200) is not available
+    # and the background agent spams 5-second connection-timeout errors which
+    # add noticeable latency to every request cycle.
+    app_env = os.getenv("MAPA_ENV", "").upper()
+    apm = None
+    if app_env == "PRODUCTION":
+        apm = make_apm_client(
+            {
+                "SERVICE_NAME": container.config.apm.service_name(),
+                "SECRET_TOKEN": container.config.apm.secret_token(),
+                "SERVER_URL": container.config.apm.server_url(),
+                "ENVIRONMENT": container.config.apm.environment(),
+                "CAPTURE_BODY": container.config.apm.body(),
+                "LOG_LEVEL": container.config.apm.log_level(),
+                "SANITIZE_FIELD_NAMES": sanitize_list,
+                "TRANSACTION_IGNORE_URLS": ignore_urls,
+            }
+        )
 
     middleware = [
         Middleware(
@@ -169,7 +176,8 @@ def create_application():
     )
     application.container = container  # type: ignore
 
-    application.apm_client = apm  # type: ignore
+    if apm is not None:
+        application.apm_client = apm  # type: ignore
 
     # Routes
     application.include_router(ping_router, prefix="/api/manage/ping", tags=["ping"])
@@ -254,3 +262,4 @@ def create_application():
         check_redirect_uris(container.config.alembic()["url"], name_list, domain)
 
     return application
+

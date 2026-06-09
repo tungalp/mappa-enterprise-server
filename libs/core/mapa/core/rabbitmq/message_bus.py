@@ -38,6 +38,10 @@ class MessageBus:
         conn = await self.publisher.connection.get_connection()
         self._channel = await conn.channel()
         self._reply_queue = None  # bağlantı koptuysa reply queue da sıfırlanmalı
+        # Regenerate reply queue name so we don't hit RESOURCE_LOCKED on the
+        # exclusive queue that the old (now-dead) connection still owns in RabbitMQ.
+        service_identifier = os.getenv("SERVICE_NAME") or socket.gethostname()
+        self._reply_queue_name = f"reply.{service_identifier}.{uuid.uuid4()}"
         # Cancel old listener task if it exists
         if self._listener_task and not self._listener_task.done():
             self._listener_task.cancel()

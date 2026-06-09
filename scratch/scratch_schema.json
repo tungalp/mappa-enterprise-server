@@ -1,0 +1,60 @@
+{
+  "form": {
+    "labelCol": 6,
+    "wrapperCol": 12
+  },
+  "schema": {
+    "type": "object",
+    "properties": {
+      "0xpvsndmmdt": {
+        "type": "void",
+        "x-component": "FormGrid",
+        "x-designable-id": "0xpvsndmmdt",
+        "x-index": 0,
+        "properties": {
+          "dgt1ap7n8ht": {
+            "type": "void",
+            "x-component": "FormGrid.GridColumn",
+            "x-designable-id": "dgt1ap7n8ht",
+            "x-index": 0,
+            "properties": {
+              "6mpj7omuiu6": {
+                "title": "Cascader",
+                "x-decorator": "FormItem",
+                "x-component": "Cascader",
+                "x-validator": [],
+                "x-component-props": {
+                  "sql_state_provider": "objectstore1",
+                  "sql_field_names": "overlaygroupname, overlayruletype, featureclass",
+                  "sql_result_type": "Unique",
+                  "sql_order_by": ""
+                },
+                "x-decorator-props": {},
+                "x-designable-id": "6mpj7omuiu6",
+                "x-index": 0
+              }
+            }
+          },
+          "cfgt2kjm55s": {
+            "type": "void",
+            "x-component": "FormGrid.GridColumn",
+            "x-designable-id": "cfgt2kjm55s",
+            "x-index": 1
+          }
+        }
+      },
+      "objectstore1": {
+        "type": "object",
+        "x-component": "XObject",
+        "x-validator": [],
+        "x-component-props": {
+          "api_path_select": "Admin/geo/ovr_topo_get"
+        },
+        "x-designable-id": "5kiu28bll6h",
+        "x-index": 1,
+        "name": "objectstore1"
+      }
+    },
+    "x-designable-id": "cywtb6ggrj4"
+  }
+}

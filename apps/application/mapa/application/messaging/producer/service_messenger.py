@@ -114,7 +114,7 @@ class ServiceMessenger:
                 status=OutboxStatus.PENDING,
                 tenant_id=tenant_id
             )
-            await self.outbox_service.create(outbox)
+            await self.outbox_service.create(outbox, tenant_id=tenant_id)
         except Exception:
             raise
         

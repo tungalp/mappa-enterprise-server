@@ -365,7 +365,7 @@ class AppService(BaseEntityService[AppRepository, App, CreateApp, UpdateApp, Upd
                 raise ex
 
     async def delete_by_ids(self, obj_ids: List[Any], tenant_id: str | None = None) -> int:
-        """Gelen id listesindeki kayıtların client ve apilerini daha sonra applicationlarını siler."""
+        """obj_ids listesindeki kayıtların client ve apilerini daha sonra applicationlarını siler."""
         query_args: QueryArgs = QueryArgs(where=[
             Filter(field="id", op=FilterOp.IN, value=obj_ids)
         ],
@@ -373,13 +373,7 @@ class AppService(BaseEntityService[AppRepository, App, CreateApp, UpdateApp, Upd
             offset=0)
         apps = await super().paging(query_args, tenant_id)
         for app in apps.items:
-            query_args = QueryArgs(where=[
-                Filter(field="client_id", op=FilterOp.EQUAL,
-                       value=app.client_id),
-            ],
-                limit=0,
-                offset=0)
-            await self.messenger.delete_client(query_args.to_serialize(), tenant_id)
+            await self.messenger.delete_client(str(app.client_id), tenant_id)
             await self.messenger.delete_api(str(app.api_id), tenant_id)
         return await super().delete_by_ids(obj_ids, tenant_id)
 
@@ -389,14 +383,7 @@ class AppService(BaseEntityService[AppRepository, App, CreateApp, UpdateApp, Upd
         query_args.limit = 0
         apps = await super().paging(query_args, tenant_id)
         for app in apps.items:
-            extra_delete_query_args = query_args.model_copy()
-            extra_delete_query_args = QueryArgs(where=[
-                Filter(field="client_id", op=FilterOp.EQUAL,
-                       value=app.client_id),
-            ],
-                limit=0,
-                offset=0)
-            await self.messenger.delete_all_clients(extra_delete_query_args.to_serialize(), tenant_id) # type: ignore
+            await self.messenger.delete_client(str(app.client_id), tenant_id)
             await self.messenger.delete_api(str(app.api_id), tenant_id)
         return await super().delete_all(query_args, tenant_id)
 
@@ -404,17 +391,11 @@ class AppService(BaseEntityService[AppRepository, App, CreateApp, UpdateApp, Upd
         """Gelen id ile kaydın client ve api daha sonra applicationnı siler."""
         query_args: QueryArgs = QueryArgs(where=[
             Filter(field="id", op=FilterOp.EQUAL, value=obj_id),
-        ])
+        ],
+            limit=0,
+            offset=0)
         apps = await super().paging(query_args, tenant_id)
         for app in apps.items:
-            query_args = QueryArgs(where=[
-                Filter(field="client_id", op=FilterOp.EQUAL,
-                       value=app.client_id),
-            ],
-                limit=0,
-                offset=0)
-            await self.messenger.delete_all_clients(query_args.to_serialize(), tenant_id) # type: ignore
+            await self.messenger.delete_client(str(app.client_id), tenant_id)
             await self.messenger.delete_api(str(app.api_id), tenant_id)
         return await super().delete(obj_id, tenant_id)
-
-

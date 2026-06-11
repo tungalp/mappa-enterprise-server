@@ -15,7 +15,7 @@ class Outbox(BaseModel):
     status: OutboxStatus
     retry_count: int = 0
     processed_at: datetime | None = None
-    tenant_id: UUID
+    tenant_id: UUID | None = None
     created_at: datetime | None = None
 
 
@@ -24,7 +24,7 @@ class CreateOutbox(BaseModel):
     aggregate_id: str
     message_type: str
     message_payload: str
-    tenant_id: UUID
+    tenant_id: UUID | None = None
     status: OutboxStatus
 
 

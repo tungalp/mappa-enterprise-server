@@ -14,6 +14,7 @@ from fastapi.routing import APIRoute
 from fastapi.responses import PlainTextResponse, JSONResponse, HTMLResponse
 from mapa.gateway.connection_info.connection_info_service import ConnectionInfoService
 import hashlib
+import asyncio
 import redis.asyncio as aioredis
 from fastapi_cache import FastAPICache
 from service.cache.cache_config import get_cache_config_from_env
@@ -95,6 +96,12 @@ class RootService(BaseDbService):
         self._cache_ttl_tenant = self._cache_config.tenant_ttl
         self._cache_ttl_api = self._cache_config.api_ttl
         self._cache_ttl_api_details = self._cache_config.api_details_ttl
+        self._locks = {}
+
+    def _get_lock(self, key: str) -> asyncio.Lock:
+        if key not in self._locks:
+            self._locks[key] = asyncio.Lock()
+        return self._locks[key]
 
     def _get_cache_key(self, prefix: str, *args) -> str:
         """Generate a consistent cache key from prefix and arguments"""
@@ -130,18 +137,24 @@ class RootService(BaseDbService):
         if cached_result is not None:
             return UUID(cached_result) if cached_result else None
 
-        # If not in cache, fetch from database
-        qa = QueryArgs(
-            where=[Filter(field="name", op=FilterOp.ILIKE, value=tenant_name)],
-        ).to_serialize()
-        response = await self._messenger.tenant_find(qa)
-        tenants = response.get("tenants", [])
-        tenant_id = tenants[0]["id"] if tenants else None
+        # If not in cache, fetch from database using a lock to prevent cache stampede
+        async with self._get_lock(cache_key):
+            # Double check if another request populated the cache while we were waiting
+            cached_result = await self._get_from_cache(cache_key)
+            if cached_result is not None:
+                return UUID(cached_result) if cached_result else None
 
-        # Cache the result
-        await self._set_cache(cache_key, str(tenant_id) if tenant_id else None, self._cache_ttl_tenant)
+            qa = QueryArgs(
+                where=[Filter(field="name", op=FilterOp.ILIKE, value=tenant_name)],
+            ).to_serialize()
+            response = await self._messenger.tenant_find(qa)
+            tenants = response.get("tenants", [])
+            tenant_id = tenants[0]["id"] if tenants else None
 
-        return tenant_id
+            # Cache the result
+            await self._set_cache(cache_key, str(tenant_id) if tenant_id else None, self._cache_ttl_tenant)
+
+            return tenant_id
 
     async def find_api(self, tenant_id: str, api_name: str) -> GatewayApi | None:
         """Tenant id ve api isminden Api bulur - with caching"""
@@ -151,17 +164,23 @@ class RootService(BaseDbService):
         if cached_result is not None:
             return GatewayApi.model_validate(cached_result) if cached_result else None
 
-        # If not in cache, fetch from database
-        api = await self._gateway_api_service.find_one(
-            QueryArgs(where=[Filter(field="path", op=FilterOp.EQUAL, value=api_name)]),
-            tenant_id,
-        )
+        # If not in cache, fetch from database using a lock to prevent cache stampede
+        async with self._get_lock(cache_key):
+            # Double check
+            cached_result = await self._get_from_cache(cache_key)
+            if cached_result is not None:
+                return GatewayApi.model_validate(cached_result) if cached_result else None
 
-        # Cache the result
-        api_dict = api.model_dump() if api else None
-        await self._set_cache(cache_key, api_dict, self._cache_ttl_api)
+            api = await self._gateway_api_service.find_one(
+                QueryArgs(where=[Filter(field="path", op=FilterOp.EQUAL, value=api_name)]),
+                tenant_id,
+            )
 
-        return api
+            # Cache the result
+            api_dict = api.model_dump() if api else None
+            await self._set_cache(cache_key, api_dict, self._cache_ttl_api)
+
+            return api
 
     async def get_api_with_details(self, tenant_id: str, api_id: UUID) -> GatewayApi:
         """İlgili Api nin tüm detay bilgilerini getirir - with caching"""
@@ -171,65 +190,70 @@ class RootService(BaseDbService):
         if cached_result is not None:
             return GatewayApi.model_validate(cached_result)
 
-        # If not in cache, fetch from database
-        api = await self._gateway_api_service.get(
-            api_id,
-            tenant_id,
-            [
-                "id",
-                "name",
-                "type",
-                "path",
-                "identifier",
-                "created_at",
-                "context",
-                {
-                    "routes": [
-                        "id",
-                        "path",
-                        "query",
-                        "scope",
-                        "method_type",
-                        "cache_timeout",
-                        "rate_limit",
-                        "rate_second",
-                        "retry_count",
-                        "retry_millisecond",
-                        "full_logging",
-                        "gateway_api_id",
-                        "integration_id",
-                        {
-                            "integration": [
-                                "id",
-                                "name",
-                                "type",
-                                "connection",
-                                "gateway_api_id",
-                                "timeout_in_millis",
-                                "context",
-                                {
-                                    "connection_info": ["id", "name", "params", "type"],
-                                    "parameter_mappings": [
-                                        "id",
-                                        "status_code",
-                                        "type",
-                                        "integration_id",
-                                        "param_list",
-                                        "created_at",
-                                    ],
-                                },
-                            ]
-                        },
-                    ]
-                },
-            ],
-        )
+        # If not in cache, fetch from database using a lock
+        async with self._get_lock(cache_key):
+            cached_result = await self._get_from_cache(cache_key)
+            if cached_result is not None:
+                return GatewayApi.model_validate(cached_result)
 
-        # Cache the result
-        api_dict = api.model_dump()
-        await self._set_cache(cache_key, api_dict, self._cache_ttl_api_details)
+            api = await self._gateway_api_service.get(
+                api_id,
+                tenant_id,
+                [
+                    "id",
+                    "name",
+                    "type",
+                    "path",
+                    "identifier",
+                    "created_at",
+                    "context",
+                    {
+                        "routes": [
+                            "id",
+                            "path",
+                            "query",
+                            "scope",
+                            "method_type",
+                            "cache_timeout",
+                            "rate_limit",
+                            "rate_second",
+                            "retry_count",
+                            "retry_millisecond",
+                            "full_logging",
+                            "gateway_api_id",
+                            "integration_id",
+                            {
+                                "integration": [
+                                    "id",
+                                    "name",
+                                    "type",
+                                    "connection",
+                                    "gateway_api_id",
+                                    "timeout_in_millis",
+                                    "context",
+                                    {
+                                        "connection_info": ["id", "name", "params", "type"],
+                                        "parameter_mappings": [
+                                            "id",
+                                            "status_code",
+                                            "type",
+                                            "integration_id",
+                                            "param_list",
+                                            "created_at",
+                                        ],
+                                    },
+                                ]
+                            },
+                        ]
+                    },
+                ],
+            )
 
-        return api
+            # Cache the result
+            api_dict = api.model_dump()
+            await self._set_cache(cache_key, api_dict, self._cache_ttl_api_details)
+
+            return api
 
     async def invalidate_tenant_cache(self, tenant_name: str):
         """Invalidate tenant cache for a specific tenant"""
@@ -305,14 +329,19 @@ class RootService(BaseDbService):
         if cached_result is not None:
             return cached_result
 
-        # If not in cache, fetch from database
-        context_var_list = await self._context_var_service.find(QueryArgs(), tenant_id)
-        result = {context_var.key: context_var.value for context_var in context_var_list}
+        # If not in cache, fetch from database using a lock
+        async with self._get_lock(cache_key):
+            cached_result = await self._get_from_cache(cache_key)
+            if cached_result is not None:
+                return cached_result
 
-        # Cache the result
-        await self._set_cache(cache_key, result, self._cache_ttl_tenant)
+            context_var_list = await self._context_var_service.find(QueryArgs(), tenant_id)
+            result = {context_var.key: context_var.value for context_var in context_var_list}
 
-        return result
+            # Cache the result
+            await self._set_cache(cache_key, result, self._cache_ttl_tenant)
+
+            return result
 
     async def create_service_request(
         self, request: Request, handler: IntegrationHandler, data: Dict[str, Any]

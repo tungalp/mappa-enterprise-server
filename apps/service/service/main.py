@@ -21,7 +21,8 @@ app = create_application()
 @app.exception_handler(FallbackTriggeredException)
 async def handle_fallback_exception(request: Request, exc: FallbackTriggeredException):
     trace_id = get_trace_id()
-    request.app.apm_client.capture_exception()
+    if hasattr(request.app, 'apm_client'):
+        request.app.apm_client.capture_exception()
     response = JSONResponse(status_code=503, content=exc.response)
     response.headers["X-Trace-Id"] = trace_id or "unknown"
     response.headers["X-Fallback"] = "true"
@@ -30,7 +31,8 @@ async def handle_fallback_exception(request: Request, exc: FallbackTriggeredExce
 @app.exception_handler(Exception)
 async def universal_handler(request: Request, exc: Exception):
     trace_id = get_trace_id()
-    request.app.apm_client.capture_exception()
+    if hasattr(request.app, 'apm_client'):
+        request.app.apm_client.capture_exception()
 
     status_code = 500
     content = str(exc)
@@ -59,7 +61,8 @@ async def universal_handler(request: Request, exc: Exception):
 @app.exception_handler(sa_exc.IntegrityError)
 async def integrity_error_handling(request: Request, exc: sa_exc.IntegrityError):
     trace_id = get_trace_id()
-    request.app.apm_client.capture_exception()
+    if hasattr(request.app, 'apm_client'):
+        request.app.apm_client.capture_exception()
 
     try:
         error_message = re.findall(r'["][\w\s]+["]', exc.args[0])[0].replace('"', "")
@@ -76,7 +79,8 @@ async def integrity_error_handling(request: Request, exc: sa_exc.IntegrityError)
 @app.exception_handler(sa_exc.DBAPIError)
 async def raise_error_handling(request: Request, exc: sa_exc.DBAPIError):
     trace_id = get_trace_id()
-    request.app.apm_client.capture_exception()
+    if hasattr(request.app, 'apm_client'):
+        request.app.apm_client.capture_exception()
 
     try:
         error_message = str(exc.orig.diag.message_primary)  # type: ignore

@@ -462,7 +462,13 @@ class RootService(BaseDbService):
         ]
 
         content = service_response.body
-        if isinstance(content, dict):
+        
+        is_json_response = (
+            service_response.response_type.find("application/json") > -1 or
+            service_response.response_type.find("application/problem+json") > -1
+        )
+
+        if isinstance(content, dict) and not is_json_response:
             content = json.dumps(content, default=str)
 
         params = {"content": content, "headers": service_response.headers, "status_code": service_response.status_code}
@@ -470,7 +476,7 @@ class RootService(BaseDbService):
             return JSONResponseX(**params)
         elif (
             service_response.response_type.find(
-                "application/problem+json; charset=utf-8"
+                "application/problem+json"
             )
             > -1
         ):

@@ -42,6 +42,307 @@ class FileStoreService(BaseEntityService[FileStoreRepository, FileStore, CreateF
                     self.minio_service.delete_object(item.file_url)
         return await super().delete_all(query_args, tenant_id)
 
+    async def list_gdb_layers(self, file_store_id: str, tenant_id: str | None = None) -> List[Dict[str, Any]]:
+        import tempfile
+        import zipfile
+        import io
+        import os
+        import fiona
+        import fiona.drvsupport
+
+        fiona.drvsupport.supported_drivers['KML'] = 'r'
+        fiona.drvsupport.supported_drivers['LIBKML'] = 'r'
+        fiona.drvsupport.supported_drivers['KMZ'] = 'r'
+        fiona.drvsupport.supported_drivers['PGeo'] = 'r'
+        fiona.drvsupport.supported_drivers['MDB'] = 'r'
+        
+        file_store = await self.get(file_store_id, tenant_id)
+        if not file_store:
+            raise Exception("FileStore not found")
+            
+        if not file_store.file_url:
+            raise Exception("FileStore URL is empty")
+            
+        object_name = file_store.file_url
+        file_bytes = self.minio_service.get_object(object_name)
+        
+        temp_dir = tempfile.mkdtemp()
+        try:
+            with zipfile.ZipFile(io.BytesIO(file_bytes), 'r') as z:
+                z.extractall(temp_dir)
+                
+            gdb_path = None
+            for root, dirs, files in os.walk(temp_dir):
+                for d in dirs:
+                    if d.lower().endswith(".gdb"):
+                        gdb_path = os.path.join(root, d)
+                        break
+                if gdb_path:
+                    break
+                    
+            if not gdb_path:
+                raise Exception("Could not find .gdb folder inside zip.")
+                
+            layers = fiona.listlayers(gdb_path)
+            
+            result = []
+            # Priority order for auto-detecting numeric key field
+            KEY_FIELD_CANDIDATES = ["objectid", "objectid_1", "fid", "fid_1", "id"]
+
+            for idx, lyr in enumerate(sorted(layers)):
+                # Read layer schema to auto-detect key field and geometry type
+                key_field = None
+                geometry_type = "Geometry"
+                try:
+                    with fiona.open(gdb_path, layer=lyr) as src:
+                        schema_props = src.schema.get("properties", {})
+                        geom = src.schema.get("geometry", "Geometry")
+                        if geom:
+                            geometry_type = geom
+
+                        # Collect integer fields (int, int32, int64)
+                        int_fields = {
+                            k.lower(): k
+                            for k, v in schema_props.items()
+                            if isinstance(v, str) and v.lower() in ("int", "int32", "int64", "integer", "long")
+                        }
+
+                        # Find any integer field starting with 'objectid'
+                        objectid_fields = [v for k, v in int_fields.items() if k.startswith("objectid")]
+                        if objectid_fields:
+                            # Prefer exact 'objectid' if exists, else first one like 'objectid_1'
+                            exact = [f for f in objectid_fields if f.lower() == "objectid"]
+                            key_field = exact[0] if exact else objectid_fields[0]
+                        else:
+                            # Fallback to other candidates if no objectid variant exists
+                            for candidate in KEY_FIELD_CANDIDATES:
+                                if candidate in int_fields:
+                                    key_field = int_fields[candidate]
+                                    break
+
+                            # Fallback: first integer field found
+                            if not key_field and int_fields:
+                                key_field = next(iter(int_fields.values()))
+
+                            # User requested strict fallback to 'OBJECTID' for GDB if all else fails
+                            if not key_field:
+                                key_field = "OBJECTID"
+                except Exception:
+                    pass  # schema read failure is non-fatal
+
+                type_name = f"file:{lyr}"
+                result.append({
+                    "id": f"{file_store_id}|{lyr}",
+                    "key": f"gdb_layer_{idx}",
+                    "title": lyr,
+                    "code": lyr,
+                    "name": lyr,
+                    "isLeaf": True,
+                    "is_base_layer": False,
+                    "data_type": "file",
+                    "key_field": key_field,
+                    "type_name": type_name,
+                    "target_namespace": "file",
+                    "geometry_field_param": {
+                        "type": geometry_type,
+                        "srid": "EPSG:4326",
+                        "field_name": "shape",
+                    },
+                    "children": []
+                })
+
+            return result
+        except Exception as e:
+            import logging
+            logging.error(f"Error in list_gdb_layers: {str(e)}", exc_info=True)
+            raise e
+        finally:
+            import shutil
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    async def get_file_schema(self, file_store_id: str, tenant_id: str | None = None) -> Dict[str, Any]:
+        """
+        Returns field names/types and an auto-detected key_field for any supported file type.
+        Supports GeoJSON (JSON parsing) and KML/KMZ/SHP/GPKG etc. (via fiona).
+        Key field priority: OBJECTID -> OBJECTID_1 -> FID -> FID_1 -> ID -> first integer -> first field.
+        """
+        import json as _json
+        import tempfile
+        import io
+        import os
+
+        KEY_FIELD_CANDIDATES = ["objectid", "objectid_1", "fid", "fid_1", "id"]
+
+        file_store = await self.get(file_store_id, tenant_id)
+        if not file_store:
+            raise Exception("FileStore not found")
+        if not file_store.file_url:
+            raise Exception("FileStore has no file associated")
+
+        file_format = (file_store.file_format or "").lower()
+
+        raw_bytes = self.minio_service.get_object(file_store.file_url)
+        if not raw_bytes:
+            raise Exception("File is empty or missing in storage")
+
+        def _auto_select_key(int_fields: Dict[str, str], all_fields: list) -> str | None:
+            """Pick best integer key field using priority candidates."""
+            objectid_fields = [v for k, v in int_fields.items() if k.startswith("objectid")]
+            if objectid_fields:
+                exact = [f for f in objectid_fields if f.lower() == "objectid"]
+                return exact[0] if exact else objectid_fields[0]
+
+            for candidate in KEY_FIELD_CANDIDATES:
+                if candidate in int_fields:
+                    return int_fields[candidate]
+            if int_fields:
+                return next(iter(int_fields.values()))
+            
+            # Strict fallback to 'OBJECTID' if nothing matches
+            return "OBJECTID"
+
+        # ── GeoJSON: inspect property values from first feature ──────────────
+        if file_format in (".geojson", "geojson"):
+            try:
+                geojson = _json.loads(raw_bytes.decode("utf-8"))
+            except Exception as e:
+                raise Exception(f"Could not parse GeoJSON: {e}")
+
+            features = geojson.get("features", [])
+            if not features:
+                return {"key_field": None, "fields": []}
+
+            props = features[0].get("properties", {}) or {}
+            fields = []
+            int_fields: Dict[str, str] = {}
+
+            for field_name, value in props.items():
+                if isinstance(value, bool):
+                    field_type = "boolean"
+                elif isinstance(value, int):
+                    field_type = "integer"
+                    int_fields[field_name.lower()] = field_name
+                elif isinstance(value, float):
+                    field_type = "float"
+                else:
+                    field_type = "string"
+                fields.append({"name": field_name, "type": field_type})
+
+            return {"key_field": _auto_select_key(int_fields, fields), "fields": fields}
+
+        # ── Fiona-readable formats: KML, KMZ, SHP, GPKG etc. ─────────────────
+        FIONA_FORMATS = {".kml", ".kmz", ".shp.zip", ".gpkg", ".mdb"}
+        if file_format in FIONA_FORMATS or file_format.endswith((".kml", ".kmz")):
+            import fiona
+            import fiona.drvsupport
+            fiona.drvsupport.supported_drivers['KML'] = 'r'
+            fiona.drvsupport.supported_drivers['LIBKML'] = 'r'
+            fiona.drvsupport.supported_drivers['KMZ'] = 'r'
+
+            temp_dir = tempfile.mkdtemp()
+            try:
+                # Write raw bytes to a temp file with correct extension
+                ext = file_format if file_format.startswith(".") else f".{file_format}"
+                temp_file = os.path.join(temp_dir, f"file{ext}")
+                with open(temp_file, "wb") as f:
+                    f.write(raw_bytes)
+
+                # Read first layer's schema
+                layers = fiona.listlayers(temp_file)
+                if not layers:
+                    return {"key_field": None, "fields": []}
+
+                fields = []
+                int_fields: Dict[str, str] = {}
+                FIONA_INT_TYPES = ("int", "int32", "int64", "integer", "long")
+
+                with fiona.open(temp_file, layer=layers[0]) as src:
+                    for fname, ftype in src.schema.get("properties", {}).items():
+                        ftype_str = str(ftype).lower()
+                        if ftype_str in FIONA_INT_TYPES:
+                            fields.append({"name": fname, "type": "integer"})
+                            int_fields[fname.lower()] = fname
+                        elif "float" in ftype_str or "double" in ftype_str or "real" in ftype_str:
+                            fields.append({"name": fname, "type": "float"})
+                        else:
+                            fields.append({"name": fname, "type": "string"})
+
+                return {"key_field": _auto_select_key(int_fields, fields), "fields": fields}
+            except Exception as e:
+                import logging
+                logging.warning(f"get_file_schema fiona read failed for {file_format}: {e}")
+                return {"key_field": None, "fields": []}
+            finally:
+                import shutil
+                shutil.rmtree(temp_dir, ignore_errors=True)
+
+        # ── Unsupported format: return safe default (frontend falls back to "objectid") ──
+        return {"key_field": None, "fields": []}
+
+
+    async def get_gdb_layer_geojson(self, file_store_id: str, layer_name: str, tenant_id: uuid.UUID | str = None) -> dict:
+        """
+        Extracts the .gdb.zip file, reads the specified layer, and converts it to GeoJSON.
+        """
+
+        import tempfile
+        import zipfile
+        import io
+        import os
+        import fiona
+        import geopandas as gpd
+        import pandas as pd
+
+        file_store = await self.get(file_store_id, tenant_id)
+        if not file_store:
+            raise Exception("File store not found")
+
+        if not file_store.file_url:
+            raise Exception("File store has no file associated")
+
+        file_bytes = self.minio_service.get_object(file_store.file_url)
+        if not file_bytes:
+            raise Exception("File is empty or missing in storage")
+
+        temp_dir = tempfile.mkdtemp()
+        try:
+            with zipfile.ZipFile(io.BytesIO(file_bytes), 'r') as z:
+                z.extractall(temp_dir)
+                
+            gdb_path = None
+            for root, dirs, files in os.walk(temp_dir):
+                for d in dirs:
+                    if d.lower().endswith(".gdb"):
+                        gdb_path = os.path.join(root, d)
+                        break
+                if gdb_path:
+                    break
+                    
+            if not gdb_path:
+                raise Exception("Could not find .gdb folder inside zip.")
+                
+            gdf = gpd.read_file(gdb_path, layer=layer_name)
+            
+            if gdf.crs is not None and gdf.crs.to_epsg() != 4326:
+                gdf = gdf.to_crs(epsg=4326)
+
+            for col in gdf.columns:
+                if pd.api.types.is_datetime64_any_dtype(gdf[col]):
+                    gdf[col] = gdf[col].apply(lambda val: val.strftime('%Y-%m-%d %H:%M:%S') if pd.notnull(val) else None)
+
+            import json
+            geojson_str = gdf.to_json()
+            geojson_data = json.loads(geojson_str)
+            return geojson_data
+            
+        except Exception as e:
+            import logging
+            logging.error(f"Error in get_gdb_layer_geojson: {str(e)}", exc_info=True)
+            raise e
+        finally:
+            import shutil
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 
 class GeoJSONConflictResolver:

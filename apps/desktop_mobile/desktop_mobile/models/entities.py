@@ -68,10 +68,10 @@ class MapEntity(EntityMixin, TenantMixin, Base):
         return f"<Map(id={self.id}, name='{self.name}')>"
 
 LayerFileType = [
-    '.kml', '.kmz', '.shp', '.shp.zip', '.geojson', 
-    '.pdf', '.gif', '.jpeg', '.jpeg.zip', '.jpg.zip', 
-    '.png', '.tiff', '.tiff.zip', '.tif.zip', '.ecw', 
-    '.ecw.zip', '.gdb.zip', '.mdb', '.gpkg', '.zip', '.rar'
+    '.kml', '.kmz', '.shp.zip', '.geojson', 
+    '.pdf', '.gif', '.jpeg', '.jpeg.zip', '.jpg', '.jpg.zip', 
+    '.png', '.tiff', '.tiff.zip', '.tif', '.tif.zip', '.ecw', 
+    '.ecw.zip', '.gdb.zip', '.mdb', '.gpkg'
 ]
 
 class LayerEntity(EntityMixin, TenantMixin, Base):

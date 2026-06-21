@@ -57,6 +57,59 @@ async def find(
     return file_store
 
 
+@router.get("/{file_store_id}/layers", response_model=Any)
+@authorize()
+@inject
+async def get_layers(
+    request: Request,
+    file_store_id: str,
+    file_store_service: FileStoreService = Depends(
+        Provide[AppContainer.file_store_package.file_store_service])
+):
+    """File store icindeki layerlari (gdb vs) dondurur"""
+    tenant_id = request.user.tenant_id
+    try:
+        layers = await file_store_service.list_gdb_layers(file_store_id, tenant_id)
+        return layers
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.get("/{file_store_id}/layer-geojson", response_model=Any)
+@authorize()
+@inject
+async def get_layer_geojson(
+    request: Request,
+    file_store_id: str,
+    layer_name: str = Query(..., description="Name of the layer to extract from GDB"),
+    file_store_service: FileStoreService = Depends(
+        Provide[AppContainer.file_store_package.file_store_service])
+):
+    """File store icindeki layer'i GeoJSON olarak dondurur"""
+    tenant_id = request.user.tenant_id
+    try:
+        geojson_data = await file_store_service.get_gdb_layer_geojson(file_store_id, layer_name, tenant_id)
+        return JSONResponse(content=geojson_data)
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+@router.get("/{file_store_id}/schema", response_model=Any)
+@authorize()
+@inject
+async def get_schema(
+    request: Request,
+    file_store_id: str,
+    file_store_service: FileStoreService = Depends(
+        Provide[AppContainer.file_store_package.file_store_service])
+):
+    """GeoJSON file store'un alan şemasını ve otomatik key field önerisini döndürür"""
+    tenant_id = request.user.tenant_id
+    try:
+        schema = await file_store_service.get_file_schema(file_store_id, tenant_id)
+        return schema
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 @router.get("/", response_model=PagingResult[Any])
 @authorize()
 @inject

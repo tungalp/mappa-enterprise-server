@@ -32,6 +32,21 @@ class MinioService:
         try:
             if not self._client.bucket_exists(self._bucket):
                 self._client.make_bucket(self._bucket)
+            
+            import json
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {"AWS": "*"},
+                        "Action": ["s3:GetObject"],
+                        "Resource": [f"arn:aws:s3:::{self._bucket}/*"]
+                    }
+                ]
+            }
+            self._client.set_bucket_policy(self._bucket, json.dumps(policy))
+
             self._bucket_checked = True
         except Exception as e:
             print(f"Minio: Warning - Could not ensure bucket: {e}")

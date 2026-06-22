@@ -165,3 +165,106 @@ async def delete_all(
     deleted_count = await map_service.delete_all(query, tenant_id)
     result = ActionResult(success=True, affected=deleted_count)
     return JSONResponse(content=result.model_dump())
+
+from mapa.core.data.query_args import QueryArgs, Filter, FilterOp
+from mapa.spatial.layer.layer_model import Layer
+from mapa.spatial.layer.layer_service import LayerService
+from mapa.spatial.layer_definition.layer_definition_service import LayerDefinitionService
+from typing import Any
+from mapa.spatial.models.merge_layer_model import MergeLayer
+
+from mapa.spatial.connection.connection_service import ConnectionService
+
+@router.get("/layer_full_info/{layer_id}", response_model=Any)
+@authorize([ApiScopeType.QUERY_LAYER])
+@inject
+async def get_layer_full_info(
+    request: Request,
+    layer_id: str,
+    config: Any = Depends(Provide[AppContainer.config]),
+    layer_service: LayerService = Depends(
+        Provide[AppContainer.layer_package.layer_service]),
+    map_service: MapService = Depends(
+        Provide[AppContainer.map_package.map_service]),
+    layer_def_service: LayerDefinitionService = Depends(
+        Provide[AppContainer.layer_package.layer_definition_service]),
+    connection_service: ConnectionService = Depends(
+        Provide[AppContainer.connection_package.connection_service])
+):
+    tenant_id = request.user.tenant_id
+    query = QueryArgs(
+        where=[Filter(field="id", op=FilterOp.EQUAL, value=layer_id)],
+        expand=["connection"]
+    )
+    layers = await layer_service.find(query, tenant_id)
+    layer = layers[0] if layers else None
+    
+    if not layer:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str('Item Not Found'))
+            
+    # Fallback to fetch connection manually if expand=["connection"] failed
+    if not layer.connection and layer.connection_id:
+        conn_query = QueryArgs(
+            where=[Filter(field="id", op=FilterOp.EQUAL, value=str(layer.connection_id))]
+        )
+        connection = await connection_service.find_one(conn_query, tenant_id)
+        if connection:
+            layer.connection = connection
+            
+    if layer.connection:
+        gateway_params = await map_service.get_gateway_params(layer.connection, tenant_id)
+        layer.layer_gateway_params = gateway_params
+        
+    ld_query = QueryArgs(
+        where=[Filter(field="layer_id", op=FilterOp.EQUAL, value=layer_id)],
+        expand=["definition", "layer_hooks"]
+    )
+    layer_def = await layer_def_service.find_one(ld_query, tenant_id)
+    
+    tenant = await map_service.get_tenant(tenant_id)
+    tenant_name = tenant.name if tenant else "api"
+    service_host = config["oidc"]["service_host"]
+    
+    definition = layer_def.definition if layer_def and hasattr(layer_def, "definition") else None
+    
+    layer_hooks_gateway_params = None
+    if layer_def and hasattr(layer_def, "layer_hooks") and layer_def.layer_hooks:
+        layer_hooks_gateway_params = await map_service.get_layer_hooks_gateway_params(layer_def.layer_hooks, tenant_id)
+
+    merged_layer = MergeLayer(
+        id=layer.id,
+        map_layer_name=layer.name,
+        order=1,
+        layer_hooks=layer_def.layer_hooks if layer_def and hasattr(layer_def, "layer_hooks") else None,
+        layer_hooks_gateway_params=layer_hooks_gateway_params,
+        title=definition.title if definition else layer.title,
+        default_extent=definition.default_extent if definition else layer.default_extent,
+        max_scale=layer.max_scale,
+        min_scale=layer.min_scale,
+        opacity=layer.opacity,
+        timer=layer.timer,
+        data_type=layer.data_type,
+        key_field=layer.key_field,
+        type_name=layer.type_name,
+        style_params=layer.style_params,
+        field_params=layer.field_params,
+        target_namespace=layer.target_namespace,
+        name=layer.name,
+        code=layer.code,
+        description=layer.description,
+        visible=layer.visible,
+        connection_id=layer.connection_id,
+        connection=layer.connection,
+        geometry_field_param=layer.geometry_field_param,
+        layer_gateway_params=layer.layer_gateway_params,
+        is_attribute_panel=definition.is_attribute_panel if definition else None,
+        tenant_name=tenant_name,
+        service_host=service_host
+    )
+    
+    merged_dict = merged_layer.model_dump(mode="json")
+    if layer_def and hasattr(layer_def, "route_id"):
+        merged_dict["route_id"] = str(layer_def.route_id) if layer_def.route_id else None
+
+    return merged_dict

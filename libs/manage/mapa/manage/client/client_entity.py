@@ -33,7 +33,7 @@ class ClientEntity(EntityMixin, Base):
     tenant_client = relationship('TenantClientEntity', back_populates="client", cascade="all, delete-orphan")
 
     organizations = relationship("OrganizationEntity",secondary="manage.organization_client",
-                         foreign_keys=[OrganizationClientEntity.organization_id, OrganizationClientEntity.client_id],back_populates="clients",cascade="all, delete" )
+                         foreign_keys=[OrganizationClientEntity.organization_id, OrganizationClientEntity.client_id],back_populates="clients",cascade="all, delete", overlaps="client,organization" )
 
     UniqueConstraint(client_id, name='client_uk_1')
     UniqueConstraint(client_secret, name='client_uk_2')

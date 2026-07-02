@@ -86,7 +86,7 @@ class UserEntity(Base):
         foreign_keys=[RoleUserEntity.user_id, RoleUserEntity.role_id],
         back_populates="users",
         cascade="all, delete",
-        overlaps="users",
+        overlaps="role,user",
     )
 
     organizations = relationship(
@@ -98,7 +98,7 @@ class UserEntity(Base):
         ],
         back_populates="users",
         cascade="all, delete",
-        overlaps="users",
+        overlaps="organization,user",
     )
 
     blocked = Column(Boolean, nullable=False, default=False)

@@ -7,6 +7,19 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime, timezone
 import geopandas as gpd
 
+def rewrite_presigned_url(request, original_url: str) -> str:
+    """Rewrites 'localhost' in presigned Minio URLs with the actual requesting client's IP."""
+    import urllib.parse
+    host_header = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if host_header:
+        host_ip = host_header.split(":")[0]
+        if host_ip not in ["localhost", "127.0.0.1"]:
+            parsed = urllib.parse.urlparse(original_url)
+            if parsed.hostname in ["localhost", "127.0.0.1"]:
+                new_netloc = f"{host_ip}:{parsed.port}" if parsed.port else host_ip
+                return parsed._replace(netloc=new_netloc).geturl()
+    return original_url
+
 def remove_file(path: str):
     try:
         os.remove(path)

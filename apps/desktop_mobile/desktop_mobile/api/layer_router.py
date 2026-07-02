@@ -9,6 +9,7 @@ from desktop_mobile.config.app_container import AppContainer
 from desktop_mobile.services.business_services import LayerService
 from desktop_mobile.services.auth import check_permission, ResourceAccess, ResourceType
 from desktop_mobile.models.schemas import LayerResponse, LayerCreate, PresignedUrlResponse
+from desktop_mobile.shared.utils import rewrite_presigned_url
 from mapa.core.data.query_args import QueryArgs
 
 router = APIRouter()
@@ -43,6 +44,7 @@ async def get_presigned_upload_url(
         url_path = f"layers/{layer_id}/{file_name}"
     try:
         upload_url = layer_service.minio_service.get_presigned_upload_url(url_path, bucket=bucket)
+        upload_url = rewrite_presigned_url(request, upload_url)
         return PresignedUrlResponse(upload_url=upload_url, url_path=url_path)
     except Exception as e:
         raise HTTPException(
@@ -320,6 +322,7 @@ async def download_layer_file(
     if t_lower not in (".gpkg", ".geojson"):
         try:
             presigned_url = layer_service.minio_service.get_presigned_download_url(db_layer.url_path, bucket=db_layer.bucket)
+            presigned_url = rewrite_presigned_url(request, presigned_url)
             from fastapi.responses import RedirectResponse
             return RedirectResponse(presigned_url, status_code=307)
         except Exception as e:

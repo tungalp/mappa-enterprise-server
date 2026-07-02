@@ -75,21 +75,43 @@ class WmsHandler:
                 service_request.query_params['cql_filter'] = self.transformer.transform(query_args)
                 del service_request.query_params['query']
 
-            # Format farkları
-            if backend.service_format == WmsServiceFormat.WMS_1_1_1:
-                service_request.query_params['version'] = '1.1.1'    
-                if service_request.query_params.get('srs'):
-                    service_request.query_params['crs'] = service_request.query_params['srs']
-                    del service_request.query_params['srs']
-            
-            if backend.service_format == WmsServiceFormat.WMS_1_3_0:
-                service_request.query_params['version'] = '1.3.0'    
-            
             # Not : Wms Özelinde GetMap - GetCapabilities - GetStyles request Tipleri kullanılmaktadır.
-            # Eğer GetStyles olarak gelen bir request varsa versionun bilgisinin 1.1.1 olması gerek
+            # Eğer GetStyles veya GetFeatureInfo olarak gelen bir request varsa versionun bilgisinin 1.1.1 olması gerek
             request = service_request.query_params.get("request")
-            if request == 'GetStyles':    
-                service_request.query_params['version'] = '1.1.1' 
+                
+            # Format farkları
+            if backend.service_format == WmsServiceFormat.WMS_1_1_1 or request == 'GetStyles' or request == 'GetFeatureInfo':
+                service_request.query_params['version'] = '1.1.1'
+                
+                # Normalize to SRS and X/Y for 1.1.1
+                crs_val = service_request.query_params.pop('crs', None) or service_request.query_params.pop('CRS', None)
+                if crs_val:
+                    service_request.query_params['srs'] = crs_val
+                    
+                i_val = service_request.query_params.pop('i', None) or service_request.query_params.pop('I', None)
+                if i_val is not None:
+                    service_request.query_params['x'] = i_val
+                    
+                j_val = service_request.query_params.pop('j', None) or service_request.query_params.pop('J', None)
+                if j_val is not None:
+                    service_request.query_params['y'] = j_val
+            
+            elif backend.service_format == WmsServiceFormat.WMS_1_3_0:
+                service_request.query_params['version'] = '1.3.0'
+                
+                # Normalize to CRS and I/J for 1.3.0
+                srs_val = service_request.query_params.pop('srs', None) or service_request.query_params.pop('SRS', None)
+                if srs_val:
+                    service_request.query_params['crs'] = srs_val
+                    
+                x_val = service_request.query_params.pop('x', None) or service_request.query_params.pop('X', None)
+                if x_val is not None:
+                    service_request.query_params['i'] = x_val
+                    
+                y_val = service_request.query_params.pop('y', None) or service_request.query_params.pop('Y', None)
+                if y_val is not None:
+                    service_request.query_params['j'] = y_val
+            
 
             request = client.build_request(
                 service_request.method,

@@ -54,7 +54,7 @@ class OrganizationEntity(EntityMixin, Base):
         ],
         back_populates="organizations",
         cascade="all, delete",
-        overlaps="organizations",
+        overlaps="organization,user",
     )
 
     roles = relationship(
@@ -66,6 +66,7 @@ class OrganizationEntity(EntityMixin, Base):
         ],
         back_populates="organizations",
         cascade="all, delete",
+        overlaps="organization,role",
     )
 
     clients = relationship(
@@ -77,6 +78,7 @@ class OrganizationEntity(EntityMixin, Base):
         ],
         back_populates="organizations",
         cascade="all, delete",
+        overlaps="organization,client",
     )
 
     # TODO: TenantMixin base classından kullanıldığı zaman unique constraint verilmediği için class'a yazıldı. 05.03.2023

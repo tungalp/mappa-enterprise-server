@@ -9,6 +9,7 @@ from desktop_mobile.config.app_container import AppContainer
 from desktop_mobile.services.business_services import MapService
 from desktop_mobile.services.auth import check_permission, ResourceAccess, ResourceType
 from desktop_mobile.models.schemas import MapResponse, MapCreate, MergedMapResponse
+from desktop_mobile.shared.utils import rewrite_presigned_url
 from mapa.core.data.query_args import QueryArgs
 
 router = APIRouter()
@@ -194,6 +195,7 @@ async def download_map_project_file(
         )
         
     presigned_url = map_service.minio_service.get_presigned_download_url(db_map.project_file_url)
+    presigned_url = rewrite_presigned_url(request, presigned_url)
     return {"url": presigned_url}
 
 # --- Map-Layer Link Management ---

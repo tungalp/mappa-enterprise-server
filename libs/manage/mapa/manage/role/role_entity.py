@@ -17,13 +17,13 @@ class RoleEntity(EntityMixin, Base):
     description = Column(Text, nullable=True)
     
     users = relationship("UserEntity",secondary="manage.role_user",
-                         foreign_keys=[RoleUserEntity.user_id, RoleUserEntity.role_id],back_populates="roles",cascade="all, delete" )
+                         foreign_keys=[RoleUserEntity.user_id, RoleUserEntity.role_id],back_populates="roles",cascade="all, delete", overlaps="role,user" )
 
     api_scopes = relationship(ApiScopeEntity,secondary="manage.role_api_scope",
-                         foreign_keys=[RoleApiScopeEntity.api_scope_id,RoleApiScopeEntity.role_id],backref="role",cascade="all, delete")
+                         foreign_keys=[RoleApiScopeEntity.api_scope_id,RoleApiScopeEntity.role_id],backref="role",cascade="all, delete", overlaps="role,api_scope")
     
     organizations = relationship("OrganizationEntity",secondary="manage.organization_role",
-                         foreign_keys=[OrganizationRoleEntity.organization_id, OrganizationRoleEntity.role_id],back_populates="roles",cascade="all, delete" )
+                         foreign_keys=[OrganizationRoleEntity.organization_id, OrganizationRoleEntity.role_id],back_populates="roles",cascade="all, delete", overlaps="role,organization" )
 
     # TODO: TenantMixin base classından kullanıldığı zaman unique constraint verilmediği için class'a yazıldı. 05.03.2023
     tenant_id = Column(UUIDType(binary=False), index=True, nullable=False)

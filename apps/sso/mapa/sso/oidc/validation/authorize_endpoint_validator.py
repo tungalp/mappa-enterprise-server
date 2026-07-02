@@ -114,9 +114,10 @@ class AuthorizeEndPointValidator:
                     private_ip_pattern = r'^(10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)$'
                     is_private_ip = bool(re.match(private_ip_pattern, hostname))
                 
-                if (is_local_host or is_private_ip) and path and (path.endswith('/callback') or path.endswith('/callback_silent')):
+                if is_local_host or is_private_ip:
                     if port in [33000, 33001, 33002, 33003, 30003, 8787]:
-                        is_allowed = True
+                        if not path or path == '/' or path.endswith('/callback') or path.endswith('/callback_silent'):
+                            is_allowed = True
 
         if not redirect_uri or not is_allowed:
             return ValidationResult(None, error=InvalidRequestError(error_description=AuthorizeErrors.INVALID_REDIRECT_URI))

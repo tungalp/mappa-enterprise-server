@@ -76,41 +76,43 @@ class WmsHandler:
                 del service_request.query_params['query']
 
             # Not : Wms Özelinde GetMap - GetCapabilities - GetStyles request Tipleri kullanılmaktadır.
+            query_params = {k.lower(): v for k, v in service_request.query_params.items()}
+            
             # Eğer GetStyles veya GetFeatureInfo olarak gelen bir request varsa versionun bilgisinin 1.1.1 olması gerek
-            request = service_request.query_params.get("request")
+            request = query_params.get("request")
                 
             # Format farkları
-            if backend.service_format == WmsServiceFormat.WMS_1_1_1 or request == 'GetStyles' or request == 'GetFeatureInfo':
-                service_request.query_params['version'] = '1.1.1'
+            if backend.service_format == WmsServiceFormat.WMS_1_1_1 or request == 'GetStyles' or request == 'GetFeatureInfo' or request == 'GetLegendGraphic':
+                query_params['version'] = '1.1.1'
                 
                 # Normalize to SRS and X/Y for 1.1.1
-                crs_val = service_request.query_params.pop('crs', None) or service_request.query_params.pop('CRS', None)
+                crs_val = query_params.pop('crs', None) or query_params.pop('CRS', None)
                 if crs_val:
-                    service_request.query_params['srs'] = crs_val
+                    query_params['srs'] = crs_val
                     
-                i_val = service_request.query_params.pop('i', None) or service_request.query_params.pop('I', None)
+                i_val = query_params.pop('i', None) or service_request.query_params.pop('I', None)
                 if i_val is not None:
-                    service_request.query_params['x'] = i_val
+                    query_params['x'] = i_val
                     
-                j_val = service_request.query_params.pop('j', None) or service_request.query_params.pop('J', None)
+                j_val = query_params.pop('j', None) or query_params.pop('J', None)
                 if j_val is not None:
-                    service_request.query_params['y'] = j_val
+                    query_params['y'] = j_val
             
             elif backend.service_format == WmsServiceFormat.WMS_1_3_0:
-                service_request.query_params['version'] = '1.3.0'
+                query_params['version'] = '1.3.0'
                 
                 # Normalize to CRS and I/J for 1.3.0
-                srs_val = service_request.query_params.pop('srs', None) or service_request.query_params.pop('SRS', None)
+                srs_val = query_params.pop('srs', None) or query_params.pop('SRS', None)
                 if srs_val:
-                    service_request.query_params['crs'] = srs_val
+                    query_params['crs'] = srs_val
                     
-                x_val = service_request.query_params.pop('x', None) or service_request.query_params.pop('X', None)
+                x_val = query_params.pop('x', None) or query_params.pop('X', None)
                 if x_val is not None:
-                    service_request.query_params['i'] = x_val
+                    query_params['i'] = x_val
                     
-                y_val = service_request.query_params.pop('y', None) or service_request.query_params.pop('Y', None)
+                y_val = query_params.pop('y', None) or query_params.pop('Y', None)
                 if y_val is not None:
-                    service_request.query_params['j'] = y_val
+                    query_params['j'] = y_val
             
 
             request = client.build_request(
@@ -119,7 +121,7 @@ class WmsHandler:
                 # headers=service_request.headers,
                 cookies=service_request.cookies,
                 content=content,
-                params=service_request.query_params
+                params=query_params
             )
             response = await client.send(request, auth=auth, follow_redirects=True)
 

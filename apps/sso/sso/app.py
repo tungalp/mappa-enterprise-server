@@ -97,8 +97,12 @@ def create_application():
     async def set_dynamic_issuer(request: Request, call_next):
         forwarded_host = request.headers.get("x-forwarded-host")
         forwarded_proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+        
         if forwarded_host:
-            host_url = f"{forwarded_proto}://{forwarded_host}"
+            # Handle comma-separated values from multiple proxies (take the first one)
+            first_host = forwarded_host.split(",")[0].strip()
+            first_proto = forwarded_proto.split(",")[0].strip()
+            host_url = f"{first_proto}://{first_host}"
         else:
             host_url = f"{request.url.scheme}://{request.url.netloc}"
             

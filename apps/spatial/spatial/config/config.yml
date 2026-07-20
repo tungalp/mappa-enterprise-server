@@ -24,7 +24,7 @@ rabbitmq:
   virtual_host: "/"
 minio:
   endpoint: "minio:9000"
-  external_endpoint: "https://storage.kabart.com.tr/:9000"
+  external_endpoint: "${MINIO_EXTERNAL_ENDPOINT}"
   access_key: "mapa"
   secret_key: "mapa12345"
   bucket: "mapa-spatial-files"

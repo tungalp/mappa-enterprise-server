@@ -23,7 +23,8 @@
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/apps/sso/.venv/bin/python3",
             "env": {
-                "PYTHONPATH": "/workspace"
+                "PYTHONPATH": "/workspace",
+                "MINIO_EXTERNAL_ENDPOINT": "localhost:9000"
             }
         },
         {
@@ -45,7 +46,8 @@
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/apps/manage/.venv/bin/python3",
             "env": {
-                "PYTHONPATH": "/workspace"
+                "PYTHONPATH": "/workspace",
+                "MINIO_EXTERNAL_ENDPOINT": "localhost:9000"
             }
         },
         {
@@ -67,7 +69,8 @@
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/apps/service/.venv/bin/python3",
             "env": {
-                "PYTHONPATH": "/workspace"
+                "PYTHONPATH": "/workspace",
+                "MINIO_EXTERNAL_ENDPOINT": "localhost:9000"
             }
         },
         {
@@ -100,7 +103,8 @@
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/apps/service/.venv/bin/python3",
             "env": {
-                "PYTHONPATH": "/workspace"
+                "PYTHONPATH": "/workspace",
+                "MINIO_EXTERNAL_ENDPOINT": "localhost:9000"
             }
         },
         {
@@ -122,7 +126,8 @@
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/apps/application/.venv/bin/python3",
             "env": {
-                "PYTHONPATH": "/workspace"
+                "PYTHONPATH": "/workspace",
+                "MINIO_EXTERNAL_ENDPOINT": "localhost:9000"
             }
         },
         {
@@ -144,7 +149,8 @@
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/apps/gateway/.venv/bin/python3",
             "env": {
-                "PYTHONPATH": "/workspace"
+                "PYTHONPATH": "/workspace",
+                "MINIO_EXTERNAL_ENDPOINT": "localhost:9000"
             }
         },
         {
@@ -166,7 +172,8 @@
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/apps/mock_app/.venv/bin/python3",
             "env": {
-                "PYTHONPATH": "/workspace"
+                "PYTHONPATH": "/workspace",
+                "MINIO_EXTERNAL_ENDPOINT": "localhost:9000"
             }
         },
         {
@@ -188,7 +195,8 @@
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/apps/spatial/.venv/bin/python3",
             "env": {
-                "PYTHONPATH": "/workspace"
+                "PYTHONPATH": "/workspace",
+                "MINIO_EXTERNAL_ENDPOINT": "localhost:9000"
             }
         },
         {
@@ -210,7 +218,8 @@
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/apps/messaging/.venv/bin/python3",
             "env": {
-                "PYTHONPATH": "/workspace"
+                "PYTHONPATH": "/workspace",
+                "MINIO_EXTERNAL_ENDPOINT": "localhost:9000"
             }
         },
         {
@@ -232,7 +241,8 @@
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/apps/desktop_mobile/.venv/bin/python3",
             "env": {
-                "PYTHONPATH": "/workspace"
+                "PYTHONPATH": "/workspace",
+                "MINIO_EXTERNAL_ENDPOINT": "localhost:9000"
             }
         },
         {

@@ -1,32 +1,33 @@
 db:
-  url: "postgresql+asyncpg://mapa:12345Abc.@postgres/mapa_prod"
+  url: "postgresql+asyncpg://${DB_USER}:${DB_PASSWORD}@${DB_HOST}/${DB_NAME}"
 oidc:
-  jwks_uri: "http://sso:8002/api/sso/oidc/jwks"
-  service_host: "http://sso:8002"
+  jwks_uri: "http://sso-api/api/sso/oidc/jwks"
+  service_host: "${SCHEME}://${SERVICE_HOST}"
 elk:
-  host: "host.docker.internal"
+  host: "logstash"
   port: 5000
 apm:
   service_name: "mapa-desktop-mobile"
   secret_token: ""
-  server_url: "http://host.docker.internal:8200"
+  server_url: "http://apm-server:8200"
   environment: "mapa-desktop-mobile-service-environment"
   body: "all"
   log_level: "info"
+  sanitize_field_names: "password,passwd,pwd,secret,*key,*token*,*session*,*credit*,*card*,*auth*,*principal*,set-cookie,tckno,tcno,vergi,tc,adres,iban,*logo*,*client_id*,*clientid*,*client-id*,*clientId*,*client_id*,*clientId*,*client-id*,*clientid*,*client_id*,*client_secret*,*client_secret*,*client-secret*,*clientSecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*client_secret*,*clientSecret*,*client-secret*,*clientsecret*,*secret_key*,*secret-key*,*secretKey*,*secretkey*,*secret_key*,*secretKey*,*secret-key*,*secretkey*"
 alembic:
   migrations_path: ""
-  url: "postgresql://mapa:12345Abc.@postgres/mapa_prod"
+  url: "postgresql://${MIG_USER}:${MIG_PASSWORD}@${DB_HOST}/${DB_NAME}"
 rabbitmq:
-  exchange_name: "mapa-exchange"
-  host: "rabbitmq"
-  port: 5672
-  username: "mapa"
-  password: "mapa"
-  virtual_host: "/"
+  exchange_name: ${RABBIT_EXCHANGE_NAME}
+  host: ${RABBIT_HOST}
+  port: ${RABBIT_PORT}
+  username: ${RABBIT_USERNAME}
+  password: ${RABBIT_PASSWORD}
+  virtual_host: ${RABBIT_V_HOST}
 minio:
-  endpoint: "minio:9000"
+  endpoint: "${MINIO_ENDPOINT}"
   external_endpoint: "${MINIO_EXTERNAL_ENDPOINT}"
-  access_key: "mapa"
-  secret_key: "mapa12345"
+  access_key: "${MINIO_ACCESS_KEY}"
+  secret_key: "${MINIO_SECRET_KEY}"
   bucket: "desktop-mobile"
   secure: false

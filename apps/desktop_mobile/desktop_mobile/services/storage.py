@@ -5,34 +5,44 @@ from datetime import timedelta
 class MinioService:
     def __init__(self, config: Any):
         # Configuration comes in as a dict from dependency-injector
-        def _clean_endpoint(endpoint: str) -> str:
+        def _clean_endpoint(endpoint: str, default_secure: bool = False) -> tuple[str, bool]:
             if not endpoint:
-                return "localhost:9000"
+                return "localhost:9000", default_secure
+            is_secure = default_secure
             if "://" in endpoint:
-                endpoint = endpoint.split("://")[-1]
+                scheme, endpoint = endpoint.split("://", 1)
+                if scheme.lower() == "https":
+                    is_secure = True
+                elif scheme.lower() == "http":
+                    is_secure = False
             endpoint = endpoint.strip("/")
             endpoint = endpoint.replace("/:", ":")
             if "/" in endpoint:
                 endpoint = endpoint.split("/")[0]
-            return endpoint
+            return endpoint, is_secure
 
-        endpoint = _clean_endpoint(config.get("endpoint", "minio:9000"))
+        raw_endpoint = config.get("endpoint", "minio:9000")
+        raw_secure = config.get("secure", False)
+        endpoint, secure = _clean_endpoint(raw_endpoint, raw_secure)
+
         self._client = Minio(
             endpoint,
             access_key=config.get("access_key"),
             secret_key=config.get("secret_key"),
-            secure=config.get("secure", False),
+            secure=secure,
             region="us-east-1"
         )
         
         # A separate client specifically for generating presigned URLs for the browser/clients.
         # Uses 'external_endpoint' for production domains, falling back to 'localhost' for local dev.
-        ext_endpoint = _clean_endpoint(config.get("external_endpoint", "localhost:9000"))
+        raw_ext_endpoint = config.get("external_endpoint", "localhost:9000")
+        ext_endpoint, ext_secure = _clean_endpoint(raw_ext_endpoint, raw_secure)
+
         self._presign_client = Minio(
             ext_endpoint,
             access_key=config.get("access_key"),
             secret_key=config.get("secret_key"),
-            secure=config.get("secure", False),
+            secure=ext_secure,
             region="us-east-1"
         )
         

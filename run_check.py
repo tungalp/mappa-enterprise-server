@@ -11,7 +11,15 @@ try:
 
     name_list = ["manage", "workspace", "application"]
     domain = container.config.domain()
-    check_redirect_uris(alembic_url, name_list, domain)
-    print("Successfully ran check_redirect_uris")
+
+    # In production (MAPA_ENV=PRODUCTION), do NOT add -dev.mapaenterprise.com URIs
+    # to the SSO whitelist — they are a security risk in a live environment.
+    is_production = os.environ.get("MAPA_ENV", "").upper() == "PRODUCTION"
+    include_dev_uris = not is_production
+
+    check_redirect_uris(alembic_url, name_list, domain, include_dev_uris=include_dev_uris)
+    env_label = "PRODUCTION" if is_production else "DEVELOPMENT"
+    print(f"Successfully ran check_redirect_uris [{env_label}] (include_dev_uris={include_dev_uris})")
 except Exception as e:
     print(f"Error: {e}")
+

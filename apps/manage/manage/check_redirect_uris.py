@@ -1,7 +1,18 @@
 from typing import List
 from sqlalchemy import create_engine, Table, MetaData, select, update
+import re
 
-def check_redirect_uris(conn_string: str, name_list: List[str], domain: str):
+def check_redirect_uris(conn_string: str, name_list: List[str], domain: str, include_dev_uris: bool = True):
+    """
+    Ensures all required OAuth2 redirect/logout/origin URIs are whitelisted in the manage.client table.
+    
+    Args:
+        conn_string: SQLAlchemy DB connection string
+        name_list:   List of client names to update (e.g. ["manage", "workspace", "application"])
+        domain:      The base domain from config (e.g. "mapaenterprise.com" or "localhost:33001")
+        include_dev_uris: If True, also adds hardcoded -dev.mapaenterprise.com URIs.
+                          Set to False in production to avoid whitelisting dev URLs.
+    """
     # Setup the database connection
     engine = create_engine(conn_string)
     connection = engine.connect()
@@ -23,26 +34,43 @@ def check_redirect_uris(conn_string: str, name_list: List[str], domain: str):
             client_id = row["client_id"]
             name = row["name"]
             
+            # Smart replace: If domain is 'manage.mapaenterprise.com', it becomes 'workspace.mapaenterprise.com'
+            # If domain is 'manage-dev.mapaenterprise.com', it becomes 'workspace-dev.mapaenterprise.com'
+            # If domain doesn't start with manage, fallback to {name}.{domain}
+            if re.match(r"^manage([.-])", domain):
+                client_domain = re.sub(r"^manage([.-])", f"{name}\\1", domain)
+            else:
+                client_domain = f"{name}.{domain}"
+            
             uris = [
-                f"http://{name}.{domain}/callback",
-                f"http://{name}.{domain}/callback_silent",
-                f"https://{name}.{domain}/callback",
-                f"https://{name}.{domain}/callback_silent",
-                f"https://{name}-dev.mapaenterprise.com/callback",
-                f"https://{name}-dev.mapaenterprise.com/callback_silent",
+                f"http://{client_domain}/callback",
+                f"http://{client_domain}/callback_silent",
+                f"https://{client_domain}/callback",
+                f"https://{client_domain}/callback_silent",
             ]
             
             l_uris = [
-                f"http://{name}.{domain}/logout",
-                f"https://{name}.{domain}/logout",
-                f"https://{name}-dev.mapaenterprise.com/logout",
+                f"http://{client_domain}/logout",
+                f"https://{client_domain}/logout",
             ]
             
             origins = [
-                f"http://{name}.{domain}",
-                f"https://{name}.{domain}",
-                f"https://{name}-dev.mapaenterprise.com",
+                f"http://{client_domain}",
+                f"https://{client_domain}",
             ]
+            
+            # Dev-only URIs: only add when running on a dev/staging environment
+            if include_dev_uris:
+                uris += [
+                    f"https://{name}-dev.mapaenterprise.com/callback",
+                    f"https://{name}-dev.mapaenterprise.com/callback_silent",
+                ]
+                l_uris += [
+                    f"https://{name}-dev.mapaenterprise.com/logout",
+                ]
+                origins += [
+                    f"https://{name}-dev.mapaenterprise.com",
+                ]
             
             modified = False
             
@@ -76,19 +104,31 @@ def check_redirect_uris(conn_string: str, name_list: List[str], domain: str):
                     
                     for app in apps:
                         base = f"/{app['tenant_name']}/{app['app_code']}"
+                        
+                        # Generate app client domain similarly
+                        if re.match(r"^manage([.-])", domain):
+                            app_client_domain = re.sub(r"^manage([.-])", f"{name}\\1", domain)
+                        else:
+                            app_client_domain = f"{name}.{domain}"
+                            
                         dyn_uris = [
-                            f"http://{name}.{domain}{base}/callback",
-                            f"http://{name}.{domain}{base}/callback_silent",
-                            f"https://{name}.{domain}{base}/callback",
-                            f"https://{name}.{domain}{base}/callback_silent",
-                            f"https://{name}-dev.mapaenterprise.com{base}/callback",
-                            f"https://{name}-dev.mapaenterprise.com{base}/callback_silent",
+                            f"http://{app_client_domain}{base}/callback",
+                            f"http://{app_client_domain}{base}/callback_silent",
+                            f"https://{app_client_domain}{base}/callback",
+                            f"https://{app_client_domain}{base}/callback_silent",
                         ]
                         dyn_l_uris = [
-                            f"http://{name}.{domain}{base}/logout",
-                            f"https://{name}.{domain}{base}/logout",
-                            f"https://{name}-dev.mapaenterprise.com{base}/logout",
+                            f"http://{app_client_domain}{base}/logout",
+                            f"https://{app_client_domain}{base}/logout",
                         ]
+                        if include_dev_uris:
+                            dyn_uris += [
+                                f"https://{name}-dev.mapaenterprise.com{base}/callback",
+                                f"https://{name}-dev.mapaenterprise.com{base}/callback_silent",
+                            ]
+                            dyn_l_uris += [
+                                f"https://{name}-dev.mapaenterprise.com{base}/logout",
+                            ]
                         
                         for u in dyn_uris:
                             if u not in redirect_uris:
@@ -148,24 +188,37 @@ def check_redirect_uris(conn_string: str, name_list: List[str], domain: str):
                 base = f"/{app['tenant_name']}/{app['app_code']}"
                 # The name variable is not easily available, we use default 'application' for domain parts
                 name = "application"
+                
+                if re.match(r"^manage([.-])", domain):
+                    dyn_client_domain = re.sub(r"^manage([.-])", f"{name}\\1", domain)
+                else:
+                    dyn_client_domain = f"{name}.{domain}"
+                    
                 dyn_uris = [
-                    f"http://{name}.{domain}{base}/callback",
-                    f"http://{name}.{domain}{base}/callback_silent",
-                    f"https://{name}.{domain}{base}/callback",
-                    f"https://{name}.{domain}{base}/callback_silent",
-                    f"https://{name}-dev.mapaenterprise.com{base}/callback",
-                    f"https://{name}-dev.mapaenterprise.com{base}/callback_silent",
+                    f"http://{dyn_client_domain}{base}/callback",
+                    f"http://{dyn_client_domain}{base}/callback_silent",
+                    f"https://{dyn_client_domain}{base}/callback",
+                    f"https://{dyn_client_domain}{base}/callback_silent",
                 ]
                 dyn_l_uris = [
-                    f"http://{name}.{domain}{base}/logout",
-                    f"https://{name}.{domain}{base}/logout",
-                    f"https://{name}-dev.mapaenterprise.com{base}/logout",
+                    f"http://{dyn_client_domain}{base}/logout",
+                    f"https://{dyn_client_domain}{base}/logout",
                 ]
                 dyn_origins = [
-                    f"http://{name}.{domain}",
-                    f"https://{name}.{domain}",
-                    f"https://{name}-dev.mapaenterprise.com",
+                    f"http://{dyn_client_domain}",
+                    f"https://{dyn_client_domain}",
                 ]
+                if include_dev_uris:
+                    dyn_uris += [
+                        f"https://{name}-dev.mapaenterprise.com{base}/callback",
+                        f"https://{name}-dev.mapaenterprise.com{base}/callback_silent",
+                    ]
+                    dyn_l_uris += [
+                        f"https://{name}-dev.mapaenterprise.com{base}/logout",
+                    ]
+                    dyn_origins += [
+                        f"https://{name}-dev.mapaenterprise.com",
+                    ]
                 
                 c_modified = False
                 for u in dyn_uris:

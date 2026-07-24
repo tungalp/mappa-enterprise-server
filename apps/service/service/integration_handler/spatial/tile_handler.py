@@ -74,10 +74,12 @@ class TileHandler:
             service_request.query_params = None
             
         # Production Internal Proxy Translation (Avoids Hairpinning)
-        if "cdn.kabart.com.tr" in url_path:
-            # If there's a port, remove it and map to internal 8081.
-            url_path = url_path.replace("cdn.kabart.com.tr:8081", "nginx-terrain:8081")
-            url_path = url_path.replace("cdn.kabart.com.tr", "nginx-terrain:8081")
+        import os
+        tiles_host = os.environ.get("TILES_HOST")
+        if tiles_host and tiles_host in url_path:
+            # Route external Nginx URL back to the internal Docker container via HTTP
+            url_path = url_path.replace(f"https://{tiles_host}", "http://nginx-terrain:8091")
+            url_path = url_path.replace(f"http://{tiles_host}", "http://nginx-terrain:8091")
 
         async with AsyncClient(**client_params) as client:
             request = client.build_request(

@@ -10,7 +10,7 @@ from mapa.manage.invitation.invitation_service import InvitationService
 from fastapi import APIRouter, Body, Depends, Request, status, HTTPException
 from fastapi.responses import JSONResponse
 from mapa.app.params import fields_param, query_param
-from mapa.core.data.query_args import QueryArgs
+from mapa.core.data.query_args import QueryArgs, Filter, FilterOp
 from mapa.core.data.result import ActionResult, PagingResult
 from mapa.manage.constants import ApiScopeType, PromptModes
 from mapa.manage.invitation.invitation_util_service import InvitationUtilService
@@ -225,6 +225,19 @@ async def user_invitation(
     tenant_id = request.user.tenant_id
 
     for data in datas:
+        # Check if an invitation for this email, tenant, and org already exists to prevent unique constraint violation
+        query_args = QueryArgs(
+            where=[
+                Filter(field="email", op=FilterOp.EQUAL, value=data.email),
+                Filter(field="tenant", op=FilterOp.EQUAL, value=tenant_id),
+                Filter(field="organization_id", op=FilterOp.EQUAL, value=data.organization_id)
+            ],
+            limit=1
+        )
+        existing = await invitation_service.find(query_args, tenant_id)
+        if existing and len(existing) > 0:
+            await invitation_service.delete(existing[0].id, tenant_id)
+
         invitation = await invitation_service.create(CreateInvitation(
             user_id=user_id,
             email=data.email,

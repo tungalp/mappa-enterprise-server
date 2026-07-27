@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Any, Dict, List
 from uuid import UUID
@@ -225,13 +226,20 @@ async def user_invitation(
     tenant_id = request.user.tenant_id
 
     for data in datas:
+        org_id = UUID(data.organization_id) if data.organization_id else None
+
         # Check if an invitation for this email, tenant, and org already exists to prevent unique constraint violation
+        where_filters = [
+            Filter(field="email", op=FilterOp.EQUAL, value=data.email),
+            Filter(field="tenant", op=FilterOp.EQUAL, value=tenant_id),
+        ]
+        if org_id is not None:
+            where_filters.append(Filter(field="organization_id", op=FilterOp.EQUAL, value=org_id))
+        else:
+            where_filters.append(Filter(field="organization_id", op=FilterOp.NULL, value=None))
+
         query_args = QueryArgs(
-            where=[
-                Filter(field="email", op=FilterOp.EQUAL, value=data.email),
-                Filter(field="tenant", op=FilterOp.EQUAL, value=tenant_id),
-                Filter(field="organization_id", op=FilterOp.EQUAL, value=data.organization_id)
-            ],
+            where=where_filters,
             limit=1
         )
         existing = await invitation_service.find(query_args, tenant_id)
@@ -243,13 +251,16 @@ async def user_invitation(
             email=data.email,
             expired_at=datetime.now(),
             tenant=tenant_id,
-            organization_id=data.organization_id # type: ignore   
-        ),tenant_id)
+            organization_id=org_id
+        ), tenant_id)
 
         response_dict = await invitation_util_service.create_invitation_link(
             config["oidc"]["app_host"], invitation)
 
-        await mail_service.send_register_email(data.email, response_dict["url"], data.lang)
+        try:
+            await mail_service.send_register_email(data.email, response_dict["url"], data.lang)
+        except Exception as err:
+            logging.warning("Failed to send invitation email to %s: %s", data.email, err)
 
     return JSONResponse(content={})
 

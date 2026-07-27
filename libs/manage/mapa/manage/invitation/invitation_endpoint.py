@@ -6,4 +6,4 @@ class InvitationEndpoint(BaseModel):
 
     email: str
     lang: str
-    organization_id :str
+    organization_id: Optional[str] = None

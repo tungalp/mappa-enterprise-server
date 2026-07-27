@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Text, UniqueConstraint
 from mapa.core.data.base_entity import Base, EntityMixin, TenantMixin
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy_utils import UUIDType
 from mapa.manage.api_scope.api_scope_entity import ApiScopeEntity
 from mapa.manage.organization_role.organization_role_entity import OrganizationRoleEntity
@@ -20,7 +20,7 @@ class RoleEntity(EntityMixin, Base):
                          foreign_keys=[RoleUserEntity.user_id, RoleUserEntity.role_id],back_populates="roles",cascade="all, delete", overlaps="role,user" )
 
     api_scopes = relationship(ApiScopeEntity,secondary="manage.role_api_scope",
-                         foreign_keys=[RoleApiScopeEntity.api_scope_id,RoleApiScopeEntity.role_id],backref="role",cascade="all, delete", overlaps="role,api_scope")
+                         foreign_keys=[RoleApiScopeEntity.api_scope_id,RoleApiScopeEntity.role_id],backref=backref("role", overlaps="api_scope,role"),cascade="all, delete", overlaps="role,api_scope")
     
     organizations = relationship("OrganizationEntity",secondary="manage.organization_role",
                          foreign_keys=[OrganizationRoleEntity.organization_id, OrganizationRoleEntity.role_id],back_populates="roles",cascade="all, delete", overlaps="role,organization" )

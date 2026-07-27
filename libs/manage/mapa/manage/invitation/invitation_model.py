@@ -12,7 +12,7 @@ class Invitation(BaseModel):
     expired_at: datetime
     tenant: UUID
     used: bool
-    organization_id: UUID
+    organization_id: UUID | None = None
     organization: Organization | None = None
     
 class CreateInvitation(BaseModel):
@@ -20,7 +20,7 @@ class CreateInvitation(BaseModel):
     user_id: UUID
     tenant: UUID
     expired_at: datetime
-    organization_id: UUID
+    organization_id: UUID | None = None
 
 class UpdateInvitation(BaseModel):
     used: bool

@@ -12,14 +12,16 @@ from mapa.spatial.layer_definition.layer_definition_model import \
     CreateLayerDefinition
 from mapa.spatial.layer_definition.layer_definition_service import \
     LayerDefinitionService
+from mapa.spatial.map_layer.map_layer_service import MapLayerService
 
 
 class LayerService(BaseEntityService[LayerRepository, Layer, CreateLayer, UpdateLayer, UpdateAllLayer]):
     """Layer Servisi"""
 
-    def __init__(self, async_db: AsyncDatabase, layer_definition_service: LayerDefinitionService) -> None:
+    def __init__(self, async_db: AsyncDatabase, layer_definition_service: LayerDefinitionService, map_layer_service: MapLayerService) -> None:
         self.async_db = async_db
         self.layer_definition_service = layer_definition_service
+        self.map_layer_service = map_layer_service
         super().__init__(async_db, LayerRepository, Layer)
 
     async def create(self, layer: CreateLayer, tenant_id: str | None = None) -> Layer:
@@ -48,6 +50,13 @@ class LayerService(BaseEntityService[LayerRepository, Layer, CreateLayer, Update
         ], limit=0, offset=0)
         layer_definitions = await self.layer_definition_service.paging(query_args, tenant_id)
         for layer_definition in layer_definitions.items:
+            map_layer_query: QueryArgs = QueryArgs(where=[
+                Filter(field="layer_definition_id", op=FilterOp.EQUAL, value=layer_definition.id),
+            ], limit=0, offset=0)
+            map_layers = await self.map_layer_service.paging(map_layer_query, tenant_id)
+            for map_layer in map_layers.items:
+                await self.map_layer_service.delete(map_layer.id, tenant_id)
+
             await self.layer_definition_service.delete(layer_definition.id, tenant_id)
             
         return await super().delete(layer_id,tenant_id)   

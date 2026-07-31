@@ -144,17 +144,41 @@ class AppService(BaseEntityService[AppRepository, App, CreateApp, UpdateApp, Upd
                     api.level_type = app.api["level_type"] # type: ignore
                     api.name = app.api["name"] # type: ignore
  
-                    created_client = await self.messenger.create_client(client.model_dump(), tenant_id) # type: ignore
-                    created_api = await self.messenger.create_api(api.model_dump(), tenant_id) # type: ignore
+                    def gen_suffix():
+                        return ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
 
-                    client_api = generate_client_api(
-                        created_client["id"], created_api["id"])
+                    try:
+                        created_client = await self.messenger.create_client(client.model_dump(), tenant_id) # type: ignore
+                        if created_client and "error" in created_client:
+                            raise Exception(created_client["error"])
+                            
+                        created_api = await self.messenger.create_api(api.model_dump(), tenant_id) # type: ignore
+                        if created_api and "error" in created_api:
+                            raise Exception(created_api["error"])
+                        
+                        client_api = generate_client_api(created_client["id"], created_api["id"])
+                        created_client_api = await self.messenger.create_client_api(client_api.model_dump(), tenant_id) # type: ignore
+                    except Exception as e:
+                        error_msg = str(e).lower()
+                        if "duplicate" in error_msg or "unique" in error_msg or "integrity" in error_msg:
+                            suffix = gen_suffix()
+                            client.name = f"{client.name}_{suffix}"
+                            api.name = f"{api.name}_{suffix}"
+                            if api.identifier:
+                                api.identifier = f"{api.identifier}_{suffix}"
+                            
+                            created_client = await self.messenger.create_client(client.model_dump(), tenant_id) # type: ignore
+                            created_api = await self.messenger.create_api(api.model_dump(), tenant_id) # type: ignore
+                            
+                            client_api = generate_client_api(created_client["id"], created_api["id"])
+                            created_client_api = await self.messenger.create_client_api(client_api.model_dump(), tenant_id) # type: ignore
+                        else:
+                            raise e
 
-                    created_client_api = await self.messenger.create_client_api(client_api.model_dump(), tenant_id) # type: ignore
                     importApp.client_id = created_client["client_id"]
                     importApp.api_id = created_api["id"]
 
-                    if app.api["api_scopes"] is not None: # type: ignore
+                    if app.api and app.api.get("api_scopes") is not None: # type: ignore
                         creating_api_scopes: list[CreateApiScope] = []
                         for api_scope in app.api["api_scopes"]: # type: ignore
                             creating_api_scopes.append(generate_api_scope(

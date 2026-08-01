@@ -156,7 +156,7 @@ async def create(
                 file_geojson = item.data
                 # If no file_url provided, we need to generate one
                 if not item.file_url:
-                    item.file_url = f"{uuid.uuid4()}-imported.geojson"
+                    item.file_url = f"file_stores/{uuid.uuid4()}-imported.geojson"
             elif item.file_url:
                 # Download from MinIO
                 raw_data = minio_service.get_object(item.file_url)
@@ -240,7 +240,7 @@ async def update(
             # Directly overwrite the existing file in MinIO to avoid storage clutter
             target_url = old_object_name
             if not target_url:
-                target_url = f"{uuid.uuid4()}.geojson"
+                target_url = f"file_stores/{uuid.uuid4()}.geojson"
                 item.file_url = target_url
             
             print(f"[FileStore] Overwriting GeoJSON in MinIO: {target_url}")
@@ -251,6 +251,14 @@ async def update(
     # Persist the changes to the database
     # (Note: item.data is automatically excluded from the update by the model definition)
     file_stores = await file_store_service.update(file_store_id, item, tenant_id, user_id)
+    
+    # Delete old orphaned file from MinIO if the URL was changed (e.g. user replaced a .gdb.zip)
+    if old_object_name and item.file_url and old_object_name != item.file_url:
+        try:
+            minio_service.delete_object(old_object_name)
+            print(f"[FileStore] Deleted old orphaned object {old_object_name} from MinIO")
+        except Exception as e:
+            print(f"[FileStore] Error deleting old object {old_object_name} from MinIO: {e}")
     
     # Reconstruct to now and send data to user back with new download_time
     if item.file_format == FileType.geojson:
@@ -327,7 +335,7 @@ async def get_upload_url(
     minio_service: MinioService = Depends(Provide[AppContainer.minio_service])
 ):
     """Generates a unique object name and pre-signed PUT URL"""
-    object_name = f"{uuid.uuid4()}-{filename}"
+    object_name = f"file_stores/{uuid.uuid4()}-{filename}"
     url = minio_service.get_presigned_upload_url(object_name)
     return {"url": url, "object_name": object_name}
 

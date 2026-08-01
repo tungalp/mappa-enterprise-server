@@ -181,7 +181,7 @@ def process_qgs_xml(xml_data: bytes, layers_lookup: dict) -> bytes:
                 l_url_path = getattr(layer, 'url_path', None) or ""
                 clean_url_path = l_url_path.split('|')[0] if l_url_path else ""
                 l_id = getattr(layer, 'id', None) or "unknown"
-                s3_folder = clean_url_path.rsplit('/', 1)[0] if '/' in clean_url_path else f"layers/{l_id}"
+                s3_folder = clean_url_path.rsplit('/', 1)[0] if '/' in clean_url_path else f"file_stores/{l_id}"
                 
                 is_zipped_upload = clean_url_path.lower().endswith(".zip") and t_lower != ".zip"
                 if is_zipped_upload:
@@ -239,7 +239,7 @@ def process_qgs_xml(xml_data: bytes, layers_lookup: dict) -> bytes:
                 l_url_path = getattr(layer, 'url_path', None) or ""
                 clean_url_path = l_url_path.split('|')[0] if l_url_path else ""
                 l_id = getattr(layer, 'id', None) or "unknown"
-                s3_folder = clean_url_path.rsplit('/', 1)[0] if '/' in clean_url_path else f"layers/{l_id}"
+                s3_folder = clean_url_path.rsplit('/', 1)[0] if '/' in clean_url_path else f"file_stores/{l_id}"
                 
                 is_zipped_upload = clean_url_path.lower().endswith(".zip") and t_lower != ".zip"
                 if is_zipped_upload:

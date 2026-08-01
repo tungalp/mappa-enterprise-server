@@ -621,7 +621,7 @@ class GeoJSONConflictResolver:
                 return tuple(float(round(c, precision)) for c in coords)
             else:
                 # Nested coordinates
-                return tuple(self.normalize_coordinates(self, c) for c in coords)
+                return tuple(self.normalize_coordinates(c, precision) for c in coords)
         return coords
 
     def get_geometry_hash(self, feature: Dict[str, Any]) -> str:

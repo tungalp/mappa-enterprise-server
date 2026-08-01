@@ -41,7 +41,7 @@ async def get_presigned_upload_url(
         url_path = f"maps/{map_id}/{file_name}"
     else:
         layer_id = uuid.uuid4()
-        url_path = f"layers/{layer_id}/{file_name}"
+        url_path = f"file_stores/{layer_id}/{file_name}"
     try:
         upload_url = layer_service.minio_service.get_presigned_upload_url(url_path, bucket=bucket)
         upload_url = rewrite_presigned_url(request, upload_url)

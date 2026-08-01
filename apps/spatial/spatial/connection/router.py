@@ -13,6 +13,7 @@ from mapa.spatial.constant import ApiScopeType
 from fastapi import (APIRouter, Body, Depends, HTTPException, Query, Request,
                      status)
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 from spatial.config.app_container import AppContainer
 
 router = APIRouter()
@@ -95,7 +96,11 @@ async def delete(
         Provide[AppContainer.connection_package.connection_service])
 ):
     tenant_id = request.user.tenant_id
-    is_success = await connection_service.delete(connection_id, tenant_id)
+    try:
+        is_success = await connection_service.delete(connection_id, tenant_id)
+    except IntegrityError:
+        raise HTTPException(status_code=512, detail=str('Connection in use'))
+        
     if is_success == False:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str('Item Not Found'))
     result = ActionResult(success=is_success, affected=1)
@@ -112,7 +117,11 @@ async def delete_by_ids(
         Provide[AppContainer.connection_package.connection_service])
 ):
     tenant_id = request.user.tenant_id
-    deleted_count = await connection_service.delete_by_ids(connection_ids, tenant_id)
+    try:
+        deleted_count = await connection_service.delete_by_ids(connection_ids, tenant_id)
+    except IntegrityError:
+        raise HTTPException(status_code=512, detail=str('Connection in use'))
+        
     is_success = True if deleted_count == len(connection_ids) else False
     if is_success == False:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str('Item Not Found'))
@@ -130,6 +139,10 @@ async def delete_all(
         Provide[AppContainer.connection_package.connection_service])
 ):
     tenant_id = request.user.tenant_id
-    deleted_count = await connection_service.delete_all(query, tenant_id)
+    try:
+        deleted_count = await connection_service.delete_all(query, tenant_id)
+    except IntegrityError:
+        raise HTTPException(status_code=512, detail=str('Connection in use'))
+        
     result = ActionResult(success=True, affected=deleted_count)
     return JSONResponse(content=result.model_dump())

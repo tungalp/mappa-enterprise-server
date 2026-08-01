@@ -388,6 +388,31 @@ class AppService(BaseEntityService[AppRepository, App, CreateApp, UpdateApp, Upd
             else: 
                 raise ex
 
+    async def update(self, obj_id: Any, obj: UpdateApp, tenant_id: str | None = None) -> App:
+        """App güncellenirken client ve api'nin de ismini/logosunu günceller."""
+        updated_app = await super().update(obj_id, obj, tenant_id)
+        
+        try:
+            if updated_app.client_id:
+                client = await self.messenger.get_client_by_client_id(str(updated_app.client_id), tenant_id)
+                if client and client.get("id"):
+                    client_update = {
+                        "name": updated_app.name,
+                        "description": updated_app.description,
+                        "logo_url": updated_app.logo
+                    }
+                    await self.messenger.update_client(str(client["id"]), client_update, tenant_id)
+                
+            if updated_app.api_id:
+                api_update = {
+                    "name": updated_app.name
+                }
+                await self.messenger.update_api(str(updated_app.api_id), api_update, tenant_id)
+        except Exception:
+            pass
+            
+        return updated_app
+
     async def delete_by_ids(self, obj_ids: List[Any], tenant_id: str | None = None) -> int:
         """obj_ids listesindeki kayıtların client ve apilerini daha sonra applicationlarını siler."""
         query_args: QueryArgs = QueryArgs(where=[
@@ -397,7 +422,9 @@ class AppService(BaseEntityService[AppRepository, App, CreateApp, UpdateApp, Upd
             offset=0)
         apps = await super().paging(query_args, tenant_id)
         for app in apps.items:
-            await self.messenger.delete_client(str(app.client_id), tenant_id)
+            client = await self.messenger.get_client_by_client_id(str(app.client_id), tenant_id)
+            if client and client.get("id"):
+                await self.messenger.delete_client(str(client["id"]), tenant_id)
             await self.messenger.delete_api(str(app.api_id), tenant_id)
         return await super().delete_by_ids(obj_ids, tenant_id)
 
@@ -407,7 +434,9 @@ class AppService(BaseEntityService[AppRepository, App, CreateApp, UpdateApp, Upd
         query_args.limit = 0
         apps = await super().paging(query_args, tenant_id)
         for app in apps.items:
-            await self.messenger.delete_client(str(app.client_id), tenant_id)
+            client = await self.messenger.get_client_by_client_id(str(app.client_id), tenant_id)
+            if client and client.get("id"):
+                await self.messenger.delete_client(str(client["id"]), tenant_id)
             await self.messenger.delete_api(str(app.api_id), tenant_id)
         return await super().delete_all(query_args, tenant_id)
 
@@ -420,6 +449,8 @@ class AppService(BaseEntityService[AppRepository, App, CreateApp, UpdateApp, Upd
             offset=0)
         apps = await super().paging(query_args, tenant_id)
         for app in apps.items:
-            await self.messenger.delete_client(str(app.client_id), tenant_id)
+            client = await self.messenger.get_client_by_client_id(str(app.client_id), tenant_id)
+            if client and client.get("id"):
+                await self.messenger.delete_client(str(client["id"]), tenant_id)
             await self.messenger.delete_api(str(app.api_id), tenant_id)
         return await super().delete(obj_id, tenant_id)

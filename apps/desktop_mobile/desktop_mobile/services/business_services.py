@@ -1224,13 +1224,13 @@ class LayerService(BaseEntityService[LayerRepository, LayerResponse, LayerCreate
         if is_data_source_changed and clean_updated_path and is_zipped_upload:
             try:
                 # Extract the s3 folder and name
-                s3_folder = clean_updated_path.rsplit('/', 1)[0] if '/' in clean_updated_path else f"layers/{layer_id}"
+                s3_folder = clean_updated_path.rsplit('/', 1)[0] if '/' in clean_updated_path else f"file_stores/{layer_id}"
                 s3_file_name = clean_updated_path.split("/")[-1]
                 final_bucket = updated_layer.bucket or "desktop-mobile"
                 
                 # Check if this layer is reusing an already existing S3 path from another layer
                 is_reused_path = False
-                if s3_folder.startswith("layers/"):
+                if s3_folder.startswith("file_stores/") or s3_folder.startswith("layers/"):
                     parts = s3_folder.split("/")
                     if len(parts) > 1:
                         try:
